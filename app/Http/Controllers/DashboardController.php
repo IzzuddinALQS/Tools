@@ -1,0 +1,57 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Dataset;
+use App\Models\Run;
+use App\Services\Guard\KillSwitch;
+use Illuminate\Http\Request;
+use Inertia\Inertia;
+use Inertia\Response;
+
+class DashboardController extends Controller
+{
+    public function __invoke(Request $request, KillSwitch $killSwitch): Response
+    {
+        return Inertia::render('Dashboard', [
+            'pause' => $killSwitch->state(),
+            'stats' => [
+                'connections' => \App\Models\Connection::count(),
+                'targets' => \App\Models\Target::count(),
+                'datasets' => Dataset::count(),
+                'datasets_active' => Dataset::where('status', 'active')->count(),
+            ],
+            'recentRuns' => Run::query()
+                ->with(['dataset:id,name', 'target:id,name'])
+                ->latest('id')
+                ->limit(10)
+                ->get()
+                ->map(fn (Run $run) => [
+                    'id' => $run->id,
+                    'dataset' => $run->dataset?->name,
+                    'kind' => $run->kind->value,
+                    'status' => $run->status->value,
+                    'verification' => $run->verificationBadge(),
+                    'row_count' => $run->row_count,
+                    'finished_at' => $run->finished_at?->toDateTimeString(),
+                ]),
+            'datasets' => Dataset::query()
+                ->with(['connection:id,name,driver', 'target:id,name'])
+                ->orderBy('name')
+                ->get()
+                ->map(fn (Dataset $dataset) => [
+                    'id' => $dataset->id,
+                    'name' => $dataset->name,
+                    'destination' => $dataset->qualifiedDestination(),
+                    'sync_mode' => $dataset->sync_mode->value,
+                    'status' => $dataset->status->value,
+                    'connection' => $dataset->connection?->name,
+                    'driver' => $dataset->connection?->driver->value,
+                    'last_success_at' => $dataset->last_success_at?->toDateTimeString(),
+                    'last_row_count' => $dataset->last_row_count,
+                    'schedule_cron' => $dataset->schedule_cron,
+                    'reconcile_cron' => $dataset->reconcile_cron,
+                ]),
+        ]);
+    }
+}

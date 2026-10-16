@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+>
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>app</directory>
+        </include>
+    </source>
+    <php>
+        <env name="APP_ENV" value="testing"/>
+        <env name="APP_KEY" value="base64:Sv3NrRFI3ElEm5bQNhNK3jT3H74D+WgqO5p/ORmc3lk="/>
+        <env name="APP_MAINTENANCE_DRIVER" value="file"/>
+        <env name="BCRYPT_ROUNDS" value="4"/>
+
+        <!-- Meta DB memakai PostgreSQL sungguhan: migrasi memakai jsonb,
+             partial unique index, dan check constraint. -->
+        <env name="DB_CONNECTION" value="pgsql"/>
+        <env name="DB_HOST" value="127.0.0.1"/>
+        <env name="DB_PORT" value="5433"/>
+        <env name="DB_DATABASE" value="ods_meta"/>
+        <env name="DB_USERNAME" value="postgres"/>
+        <env name="DB_PASSWORD" value="postgres"/>
+
+        <!-- PG A / PG B untuk pengujian engine -->
+        <env name="TEST_PG_HOST" value="127.0.0.1"/>
+        <env name="TEST_PG_PORT" value="5433"/>
+        <env name="TEST_PG_USERNAME" value="postgres"/>
+        <env name="TEST_PG_PASSWORD" value="postgres"/>
+        <env name="TEST_PG_A_DATABASE" value="ods_pg_a"/>
+        <env name="TEST_PG_B_DATABASE" value="ods_pg_b_armors"/>
+        <env name="TEST_PG_B2_DATABASE" value="ods_pg_b_reporting"/>
+        <env name="TEST_PG_RO_USER" value="ods_ro"/>
+        <env name="TEST_PG_RO_PASSWORD" value="ods_ro_pass"/>
+
+        <env name="MAIL_MAILER" value="array"/>
+        <env name="PULSE_ENABLED" value="false"/>
+        <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="CACHE_STORE" value="array"/>
+        <env name="SYNC_LOCK_STORE" value="array"/>
+        <env name="SESSION_DRIVER" value="array"/>
+        <env name="TELESCOPE_ENABLED" value="false"/>
+    </php>
+</phpunit>
