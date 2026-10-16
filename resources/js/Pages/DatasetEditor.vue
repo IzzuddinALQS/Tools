@@ -4,6 +4,7 @@ import { Head, useForm } from '@inertiajs/vue3'
 import CodeEditor from '../Components/CodeEditor.vue'
 import PreviewTable from '../Components/PreviewTable.vue'
 import WarningList from '../Components/WarningList.vue'
+import StatusBadge from '../Components/StatusBadge.vue'
 
 const props = defineProps({
   dataset: { type: Object, default: null },
@@ -43,8 +44,6 @@ const preview = ref(null)
 const previewing = ref(false)
 const previewError = ref(null)
 const running = ref(false)
-
-const sqlErrors = form.errors?.sql
 
 async function runPreview() {
   previewError.value = null
@@ -95,9 +94,7 @@ function save() {
 
 function runNow(mode) {
   if (!isEdit) return
-
   running.value = true
-
   form.transform((data) => ({ mode })).post(`/datasets/${props.dataset.id}/run`, {
     preserveScroll: true,
     onFinish: () => {
@@ -122,37 +119,26 @@ function toggleKeyColumn(name) {
   <Head :title="isEdit ? `Dataset ${dataset.name}` : 'Dataset baru'" />
 
   <div class="space-y-6">
-    <header class="flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <h1 class="text-xl font-semibold tracking-tight">
-          {{ isEdit ? dataset.name : 'Dataset baru' }}
-        </h1>
-        <p class="mt-1 text-sm text-slate-500">
+    <!-- Judul -->
+    <div class="flex flex-wrap items-end justify-between gap-4">
+      <div class="min-w-0">
+        <h1 class="page-title">{{ isEdit ? dataset.name : 'Dataset baru' }}</h1>
+        <p class="mt-1 text-sm text-ink-500">
           Tulis satu query SELECT. Kalau membaca satu tabel Oracle, nama tabel dan kolom di PG A
           dibuat identik dengan Oracle.
         </p>
       </div>
 
       <div v-if="isEdit" class="flex flex-wrap gap-2">
-        <button
-          type="button"
-          class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
-          :disabled="running"
-          @click="runNow(dataset.sync_mode)"
-        >
+        <button type="button" class="btn-primary" :disabled="running" @click="runNow(dataset.sync_mode)">
           {{ running ? 'Menjalankan…' : 'Jalankan sinkronisasi' }}
         </button>
-        <button
-          v-if="dataset.sync_mode === 'incremental'"
-          type="button"
-          class="rounded-lg border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50 disabled:opacity-50"
-          :disabled="running"
-          @click="runNow('full')"
-        >
+        <button v-if="dataset.sync_mode === 'incremental'" type="button" class="btn-secondary"
+                :disabled="running" @click="runNow('full')">
           Rekonsiliasi full
         </button>
       </div>
-    </header>
+    </div>
 
     <WarningList
       v-if="form.sync_mode === 'incremental'"
@@ -163,70 +149,60 @@ function toggleKeyColumn(name) {
       ]"
     />
 
-    <form class="grid gap-6 lg:grid-cols-3" @submit.prevent="save">
+    <form class="grid gap-5 lg:grid-cols-3" @submit.prevent="save">
+      <!-- Kolom kiri -->
       <div class="space-y-4 lg:col-span-2">
-        <div class="rounded-lg border border-slate-200 bg-white p-4">
+        <div class="surface p-5">
           <div class="grid gap-4 sm:grid-cols-2">
             <label class="block">
-              <span class="text-sm font-medium text-slate-700">Nama dataset</span>
-              <input v-model="form.name" required
-                     class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-              <span v-if="form.errors.name" class="mt-1 block text-xs text-red-600">{{ form.errors.name }}</span>
+              <span class="eyebrow">Nama dataset</span>
+              <input v-model="form.name" required class="input mt-1.5" placeholder="po-headers">
+              <span v-if="form.errors.name" class="hint text-red-600">{{ form.errors.name }}</span>
             </label>
 
             <label class="block">
-              <span class="text-sm font-medium text-slate-700">Koneksi sumber</span>
-              <select v-model="form.connection_id" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-                <option v-for="connection in connections" :key="connection.id" :value="connection.id">
-                  {{ connection.name }} — {{ connection.driver_label }}
-                </option>
+              <span class="eyebrow">Koneksi sumber</span>
+              <select v-model="form.connection_id" required class="input mt-1.5">
+                <option v-for="c in connections" :key="c.id" :value="c.id">{{ c.name }} — {{ c.driver_label }}</option>
               </select>
             </label>
 
             <label class="block">
-              <span class="text-sm font-medium text-slate-700">Target PostgreSQL A</span>
-              <select v-model="form.target_id" required class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-                <option v-for="target in targets.filter((t) => t.kind === 'pg_a')" :key="target.id" :value="target.id">
-                  {{ target.name }}
-                </option>
+              <span class="eyebrow">Target PostgreSQL A</span>
+              <select v-model="form.target_id" required class="input mt-1.5">
+                <option v-for="t in targets.filter((x) => x.kind === 'pg_a')" :key="t.id" :value="t.id">{{ t.name }}</option>
               </select>
-              <span class="mt-1 block text-xs text-slate-500">
-                Salinan ke PG B dibuat lewat halaman Copy, bukan di sini.
-              </span>
+              <span class="hint">Salinan ke PG B dibuat lewat halaman Copy, bukan di sini.</span>
             </label>
 
             <label class="block">
-              <span class="text-sm font-medium text-slate-700">Mode sync</span>
-              <select v-model="form.sync_mode" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-                <option v-for="mode in defaults.sync_modes" :key="mode.value" :value="mode.value">
-                  {{ mode.label }}
-                </option>
+              <span class="eyebrow">Mode sync</span>
+              <select v-model="form.sync_mode" class="input mt-1.5">
+                <option v-for="m in defaults.sync_modes" :key="m.value" :value="m.value">{{ m.label }}</option>
               </select>
+            </label>
+
+            <label class="block sm:col-span-2">
+              <span class="eyebrow">Keterangan</span>
+              <input v-model="form.description" class="input mt-1.5" placeholder="opsional">
             </label>
           </div>
-
-          <label class="mt-4 block">
-            <span class="text-sm font-medium text-slate-700">Keterangan</span>
-            <input v-model="form.description"
-                   class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-          </label>
         </div>
 
-        <div class="rounded-lg border border-slate-200 bg-white p-4">
-          <div class="mb-2 flex items-center justify-between">
-            <span class="text-sm font-medium text-slate-700">Query SELECT</span>
-            <button type="button" class="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium hover:bg-slate-50"
-                    :disabled="previewing" @click="runPreview">
+        <div class="surface p-5">
+          <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <span class="text-sm font-semibold text-ink-900">Query SELECT</span>
+            <button type="button" class="btn-secondary btn-sm" :disabled="previewing" @click="runPreview">
               {{ previewing ? 'Menjalankan…' : `Preview (${defaults.preview_rows} baris)` }}
             </button>
           </div>
 
           <CodeEditor v-model="form.sql" />
 
-          <p v-if="form.errors.sql" class="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+          <p v-if="form.errors.sql" class="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs leading-relaxed text-red-700">
             {{ form.errors.sql }}
           </p>
-          <p class="mt-2 text-xs text-slate-500">
+          <p v-else class="mt-3 text-xs text-ink-400">
             Preview hanya menampilkan {{ defaults.preview_rows }} baris pertama dan tidak menyimpan apa pun.
           </p>
         </div>
@@ -235,44 +211,41 @@ function toggleKeyColumn(name) {
           {{ previewError }}
         </div>
 
-        <div v-if="preview" class="space-y-3">
-          <div class="rounded-lg border border-slate-200 bg-white p-4">
-            <div class="flex flex-wrap items-center gap-3 text-sm">
-              <span class="rounded-full px-2 py-0.5 text-xs font-medium"
-                    :class="preview.identity_mode ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'">
-                {{ preview.identity_mode ? 'Nama identik Oracle' : 'Nama tabel tujuan sendiri' }}
-              </span>
-              <span class="font-mono text-xs text-slate-600">{{ preview.qualified_table }}</span>
-              <span v-if="preview.source_table" class="text-xs text-slate-500">dari {{ preview.source_table }}</span>
-              <span class="ml-auto text-xs text-slate-500">{{ preview.row_count_shown }} baris ditampilkan</span>
-            </div>
+        <template v-if="preview">
+          <div class="surface flex flex-wrap items-center gap-3 px-5 py-4">
+            <span :class="preview.identity_mode ? 'badge-success' : 'badge-warning'">
+              {{ preview.identity_mode ? 'Nama identik Oracle' : 'Nama tabel tujuan sendiri' }}
+            </span>
+            <span class="mono text-xs text-ink-600">{{ preview.qualified_table }}</span>
+            <span v-if="preview.source_table" class="text-xs text-ink-400">dari {{ preview.source_table }}</span>
+            <span class="ml-auto text-xs text-ink-400">{{ preview.row_count_shown }} baris ditampilkan</span>
           </div>
 
-          <WarningList v-if="preview.warnings?.length" title="Catatan tipe" :warnings="preview.warnings" />
+          <WarningList v-if="preview.warnings?.length" title="Catatan" :warnings="preview.warnings" tone="info" />
 
-          <div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
-            <table class="w-full text-left text-sm">
-              <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
                 <tr>
-                  <th class="px-3 py-2">Kolom</th>
-                  <th class="px-3 py-2">Tipe Oracle</th>
-                  <th class="px-3 py-2">Tipe PostgreSQL</th>
-                  <th class="px-3 py-2">Sumber</th>
+                  <th>Kolom</th>
+                  <th>Tipe Oracle</th>
+                  <th>Tipe PostgreSQL</th>
+                  <th>Sumber tipe</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="column in preview.columns" :key="column.name" class="border-t border-slate-100 align-top">
-                  <td class="px-3 py-2 font-mono text-xs">{{ column.name }}</td>
-                  <td class="px-3 py-2 text-xs text-slate-600">{{ column.oracle_type || '—' }}</td>
-                  <td class="px-3 py-2">
-                    <code class="rounded bg-slate-100 px-1.5 py-0.5 text-xs">{{ column.pg_type }}</code>
+                <tr v-for="column in preview.columns" :key="column.name" class="align-top">
+                  <td class="mono font-medium text-ink-900">{{ column.name }}</td>
+                  <td class="mono text-xs text-ink-500">{{ column.oracle_type || '—' }}</td>
+                  <td>
+                    <code class="rounded bg-ink-100 px-1.5 py-0.5 font-mono text-[11.5px] text-ink-800">{{ column.pg_type }}</code>
                   </td>
-                  <td class="px-3 py-2 text-xs">
+                  <td class="text-xs">
                     <span v-if="column.from_metadata" class="text-emerald-700">metadata Oracle</span>
                     <span v-else class="text-amber-700">perlu konfirmasi</span>
-                    <span v-if="column.overridden" class="ml-1 text-slate-400">(diubah admin)</span>
+                    <span v-if="column.overridden" class="ml-1 text-ink-400">(diubah admin)</span>
                     <ul v-if="column.warnings?.length" class="mt-1 list-disc pl-4 text-amber-700">
-                      <li v-for="(warning, i) in column.warnings" :key="i">{{ warning }}</li>
+                      <li v-for="(w, i) in column.warnings" :key="i">{{ w }}</li>
                     </ul>
                   </td>
                 </tr>
@@ -281,145 +254,148 @@ function toggleKeyColumn(name) {
           </div>
 
           <PreviewTable :columns="preview.columns" :rows="preview.rows" />
-        </div>
+        </template>
       </div>
 
+      <!-- Kolom kanan -->
       <div class="space-y-4">
-        <div class="space-y-4 rounded-lg border border-slate-200 bg-white p-4">
-          <h2 class="text-sm font-semibold">Batas & jadwal</h2>
+        <div class="surface space-y-4 p-5">
+          <h2 class="text-sm font-semibold text-ink-900">Batas & jadwal</h2>
 
           <label class="block">
-            <span class="text-sm text-slate-600">Jadwal sync (cron)</span>
-            <input v-model="form.schedule_cron" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 font-mono text-xs">
+            <span class="eyebrow">Jadwal sync (cron)</span>
+            <input v-model="form.schedule_cron" class="input-sm mono mt-1.5" placeholder="0 * * * *">
           </label>
-
           <label class="block">
-            <span class="text-sm text-slate-600">Jadwal rekonsiliasi full</span>
-            <input v-model="form.reconcile_cron" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 font-mono text-xs">
+            <span class="eyebrow">Jadwal rekonsiliasi full</span>
+            <input v-model="form.reconcile_cron" class="input-sm mono mt-1.5" placeholder="0 2 * * *">
           </label>
 
           <div class="grid grid-cols-3 gap-2">
             <label class="block">
-              <span class="text-xs text-slate-600">Timeout (detik)</span>
-              <input v-model.number="form.timeout_seconds" type="number" min="1" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs">
+              <span class="eyebrow">Timeout (dtk)</span>
+              <input v-model.number="form.timeout_seconds" type="number" min="1" class="input-sm mt-1.5">
             </label>
             <label class="block">
-              <span class="text-xs text-slate-600">Maks baris</span>
-              <input v-model.number="form.max_rows" type="number" min="1" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs">
+              <span class="eyebrow">Maks baris</span>
+              <input v-model.number="form.max_rows" type="number" min="1" class="input-sm mt-1.5">
             </label>
             <label class="block">
-              <span class="text-xs text-slate-600">Batch</span>
-              <input v-model.number="form.batch_size" type="number" min="1" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-xs">
+              <span class="eyebrow">Batch</span>
+              <input v-model.number="form.batch_size" type="number" min="1" class="input-sm mt-1.5">
             </label>
           </div>
         </div>
 
-        <div v-if="form.sync_mode === 'incremental'" class="space-y-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
-          <h2 class="text-sm font-semibold">Kunci watermark</h2>
+        <div v-if="form.sync_mode === 'incremental'" class="surface space-y-4 border-amber-200 p-5">
+          <h2 class="text-sm font-semibold text-ink-900">Kunci watermark</h2>
 
           <label class="block">
-            <span class="text-sm text-slate-700">Kolom watermark</span>
-            <input v-model="form.watermark_column" placeholder="LAST_UPDATE_DATE"
-                   class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 font-mono text-xs">
+            <span class="eyebrow">Kolom watermark</span>
+            <input v-model="form.watermark_column" class="input-sm mono mt-1.5" placeholder="LAST_UPDATE_DATE">
           </label>
-
           <label class="block">
-            <span class="text-sm text-slate-700">Tipe watermark</span>
-            <input v-model="form.watermark_type" placeholder="TIMESTAMP"
-                   class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-1.5 font-mono text-xs">
+            <span class="eyebrow">Tipe watermark</span>
+            <input v-model="form.watermark_type" class="input-sm mono mt-1.5" placeholder="TIMESTAMP">
           </label>
 
           <div>
-            <span class="text-sm text-slate-700">Kolom kunci (untuk upsert)</span>
+            <span class="eyebrow">Kolom kunci (untuk upsert)</span>
             <div v-if="preview?.columns?.length" class="mt-2 flex flex-wrap gap-1.5">
-              <button
-                v-for="column in preview.columns"
-                :key="column.name"
-                type="button"
-                class="rounded-full border px-2 py-0.5 font-mono text-xs"
-                :class="form.key_columns.includes(column.name)
-                  ? 'border-slate-900 bg-slate-900 text-white'
-                  : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50'"
-                @click="toggleKeyColumn(column.name)"
-              >
+              <button v-for="column in preview.columns" :key="column.name" type="button"
+                      class="badge px-2 py-1 font-mono"
+                      :class="form.key_columns.includes(column.name)
+                        ? 'bg-ink-900 text-white ring-ink-900'
+                        : 'bg-white text-ink-600 ring-ink-300 hover:bg-ink-50'"
+                      @click="toggleKeyColumn(column.name)">
                 {{ column.name }}
               </button>
             </div>
-            <p v-else class="mt-1 text-xs text-slate-600">Jalankan Preview dulu untuk melihat daftar kolom.</p>
-            <span v-if="form.errors.key_columns" class="mt-1 block text-xs text-red-600">{{ form.errors.key_columns }}</span>
+            <p v-else class="mt-1.5 text-xs text-ink-400">Jalankan Preview dulu untuk melihat daftar kolom.</p>
+            <span v-if="form.errors.key_columns" class="hint text-red-600">{{ form.errors.key_columns }}</span>
           </div>
         </div>
 
-        <div class="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
-          <h2 class="text-sm font-semibold">Copy otomatis ke PG B</h2>
-          <p class="text-xs text-slate-500">Setiap sinkronisasi sukses akan otomatis disalin ke target di bawah.</p>
-
-          <label v-for="target in copyTargets" :key="target.id" class="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              :value="target.id"
-              v-model="form.auto_copy_to"
-              class="rounded border-slate-300"
-            >
-            <span>{{ target.name }} <span class="text-xs text-slate-500">({{ target.app_name }})</span></span>
+        <div class="surface space-y-3 p-5">
+          <h2 class="text-sm font-semibold text-ink-900">Copy otomatis ke PG B</h2>
+          <p class="text-xs leading-relaxed text-ink-500">
+            Setiap sinkronisasi sukses otomatis disalin ke target di bawah.
+          </p>
+          <label v-for="t in copyTargets" :key="t.id" class="flex items-start gap-2.5 text-sm">
+            <input type="checkbox" :value="t.id" v-model="form.auto_copy_to"
+                   class="mt-0.5 h-4 w-4 rounded border-ink-300 text-brand-600 focus:ring-brand-500">
+            <span class="text-ink-700">
+              {{ t.name }}
+              <span class="text-xs text-ink-400">({{ t.app_name }})</span>
+            </span>
           </label>
-
-          <p v-if="copyTargets.length === 0" class="text-xs text-slate-500">
+          <p v-if="copyTargets.length === 0" class="text-xs text-ink-400">
             Belum ada PG B. Tambahkan lewat halaman Driver.
           </p>
         </div>
 
-        <label v-if="isEdit" class="block rounded-lg border border-slate-200 bg-white p-4">
-          <span class="text-sm font-medium text-slate-700">Catatan perubahan</span>
-          <input v-model="form.note" placeholder="mis. tambah kolom STATUS_CODE"
-                 class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
-          <span class="mt-1 block text-xs text-slate-500">Tersimpan bersama versi baru.</span>
+        <label v-if="isEdit" class="block surface p-5">
+          <span class="eyebrow">Catatan perubahan</span>
+          <input v-model="form.note" class="input mt-1.5" placeholder="mis. tambah kolom STATUS_CODE">
+          <span class="hint">Tersimpan bersama versi baru.</span>
         </label>
 
-        <button type="submit" class="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-                :disabled="form.processing">
+        <button type="submit" class="btn-primary w-full" :disabled="form.processing">
           {{ isEdit ? 'Simpan perubahan' : 'Simpan ke PostgreSQL A' }}
         </button>
       </div>
     </form>
 
+    <!-- Riwayat versi -->
     <section v-if="isEdit && versions.length" class="space-y-3">
-      <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Riwayat versi</h2>
-      <div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
-        <table class="w-full text-left text-sm">
-          <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+      <h2 class="eyebrow">Riwayat versi</h2>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
             <tr>
-              <th class="px-3 py-2">Versi</th>
-              <th class="px-3 py-2">Waktu</th>
-              <th class="px-3 py-2">Oleh</th>
-              <th class="px-3 py-2">Jenis</th>
-              <th class="px-3 py-2">Catatan</th>
+              <th>Versi</th>
+              <th>Waktu</th>
+              <th>Oleh</th>
+              <th>Jenis</th>
+              <th>Catatan</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="version in versions.slice().reverse()" :key="version.id" class="border-t border-slate-100">
-              <td class="px-3 py-2 tabular-nums">v{{ version.version_no }}</td>
-              <td class="px-3 py-2 text-xs text-slate-500">{{ version.created_at }}</td>
-              <td class="px-3 py-2 text-xs">{{ version.changed_by || '—' }}</td>
-              <td class="px-3 py-2 text-xs text-slate-500">{{ version.change_type }}</td>
-              <td class="px-3 py-2 text-xs text-slate-600">{{ version.note || '—' }}</td>
+            <tr v-for="version in versions.slice().reverse()" :key="version.id">
+              <td class="font-medium tabular-nums">v{{ version.version_no }}</td>
+              <td class="text-xs text-ink-500">{{ version.created_at }}</td>
+              <td class="text-xs">{{ version.changed_by || '—' }}</td>
+              <td class="text-xs text-ink-500">{{ version.change_type }}</td>
+              <td class="text-xs text-ink-600">{{ version.note || '—' }}</td>
             </tr>
           </tbody>
         </table>
       </div>
     </section>
 
+    <!-- Eksekusi terakhir -->
     <section v-if="isEdit && recentRuns.length" class="space-y-3">
-      <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Eksekusi terakhir</h2>
-      <div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
-        <table class="w-full text-left text-sm">
+      <h2 class="eyebrow">Eksekusi terakhir</h2>
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Mulai</th>
+              <th>Jenis</th>
+              <th>Status</th>
+              <th class="text-right">Baris</th>
+              <th class="text-right">Durasi</th>
+              <th>Pesan</th>
+            </tr>
+          </thead>
           <tbody>
-            <tr v-for="run in recentRuns" :key="run.id" class="border-b border-slate-100 last:border-0">
-              <td class="px-3 py-2 text-xs text-slate-500">{{ run.started_at }}</td>
-              <td class="px-3 py-2">{{ run.kind }} / {{ run.trigger }}</td>
-              <td class="px-3 py-2">{{ run.row_count ?? '—' }} baris</td>
-              <td class="px-3 py-2 text-xs text-slate-500">{{ run.duration_ms ?? '—' }} ms</td>
-              <td class="px-3 py-2 text-xs text-red-600">{{ run.error_message || '' }}</td>
+            <tr v-for="run in recentRuns" :key="run.id">
+              <td class="whitespace-nowrap text-xs text-ink-500">{{ run.started_at }}</td>
+              <td class="text-xs">{{ run.kind }} · {{ run.trigger }}</td>
+              <td><StatusBadge :status="run.status" /></td>
+              <td class="text-right tabular-nums">{{ run.row_count ?? '—' }}</td>
+              <td class="text-right text-xs text-ink-500">{{ run.duration_ms ?? '—' }} ms</td>
+              <td class="text-xs text-red-600">{{ run.error_message || '' }}</td>
             </tr>
           </tbody>
         </table>

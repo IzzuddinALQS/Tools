@@ -28,22 +28,20 @@ watch(form, () => {
 
   <PageHeader title="Riwayat eksekusi">
     <template #subtitle>
-      <p class="mt-1 text-sm text-slate-500">
-        Waktu, durasi, jumlah baris, status, pemicu, dan hasil verifikasi hash setiap eksekusi.
-      </p>
+      Waktu, durasi, jumlah baris, status, pemicu, dan hasil verifikasi hash setiap eksekusi.
     </template>
 
-    <div class="grid gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:grid-cols-4">
+    <div class="surface grid gap-3 p-4 sm:grid-cols-4">
       <label class="block">
-        <span class="text-xs text-slate-600">Dataset</span>
-        <select v-model="form.dataset_id" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm">
+        <span class="eyebrow">Dataset</span>
+        <select v-model="form.dataset_id" class="input-sm mt-1.5">
           <option value="">Semua</option>
           <option v-for="(name, id) in datasets" :key="id" :value="id">{{ name }}</option>
         </select>
       </label>
       <label class="block">
-        <span class="text-xs text-slate-600">Status</span>
-        <select v-model="form.status" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm">
+        <span class="eyebrow">Status</span>
+        <select v-model="form.status" class="input-sm mt-1.5">
           <option value="">Semua</option>
           <option value="success">Sukses</option>
           <option value="failed">Gagal</option>
@@ -52,8 +50,8 @@ watch(form, () => {
         </select>
       </label>
       <label class="block">
-        <span class="text-xs text-slate-600">Jenis</span>
-        <select v-model="form.kind" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm">
+        <span class="eyebrow">Jenis</span>
+        <select v-model="form.kind" class="input-sm mt-1.5">
           <option value="">Semua</option>
           <option value="sync">Sync</option>
           <option value="copy">Copy</option>
@@ -61,51 +59,53 @@ watch(form, () => {
         </select>
       </label>
       <label class="block">
-        <span class="text-xs text-slate-600">Verifikasi</span>
-        <select v-model="form.verification" class="mt-1 w-full rounded-lg border border-slate-300 px-2 py-1.5 text-sm">
+        <span class="eyebrow">Verifikasi</span>
+        <select v-model="form.verification" class="input-sm mt-1.5">
           <option value="">Semua</option>
-          <option value="ok">✅ Identik</option>
-          <option value="failed">❌ Tidak identik</option>
+          <option value="ok">✓ Hash identik</option>
+          <option value="failed">✗ Hash berbeda</option>
         </select>
       </label>
     </div>
 
-    <div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
-      <table class="w-full text-left text-sm">
-        <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
           <tr>
-            <th class="px-3 py-2">Waktu</th>
-            <th class="px-3 py-2">Dataset</th>
-            <th class="px-3 py-2">Jenis / pemicu</th>
-            <th class="px-3 py-2">Status</th>
-            <th class="px-3 py-2">Verifikasi</th>
-            <th class="px-3 py-2 text-right">Baris</th>
-            <th class="px-3 py-2 text-right">Durasi</th>
+            <th>Waktu</th>
+            <th>Dataset</th>
+            <th>Jenis / pemicu</th>
+            <th>Status</th>
+            <th>Verifikasi</th>
+            <th class="text-right">Baris</th>
+            <th class="text-right">Durasi</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="runs.data.length === 0">
-            <td colspan="7" class="px-3 py-6 text-center text-slate-500">Belum ada eksekusi.</td>
+            <td colspan="7" class="py-10 text-center text-ink-400">Belum ada eksekusi.</td>
           </tr>
-          <tr v-for="run in runs.data" :key="run.id" class="border-t border-slate-100 align-top">
-            <td class="whitespace-nowrap px-3 py-2 text-xs text-slate-500">{{ run.started_at }}</td>
-            <td class="px-3 py-2">
-              <Link :href="`/history/${run.id}`" class="hover:underline">{{ run.dataset || '—' }}</Link>
+          <tr v-for="run in runs.data" :key="run.id" class="align-top">
+            <td class="whitespace-nowrap text-xs text-ink-500">{{ run.started_at }}</td>
+            <td class="font-medium">
+              <Link :href="`/history/${run.id}`" class="hover:text-brand-700 hover:underline">{{ run.dataset || '—' }}</Link>
             </td>
-            <td class="px-3 py-2 text-xs text-slate-500">
-              {{ run.kind }} / {{ run.trigger }}
-              <span v-if="run.triggered_by" class="block text-slate-400">{{ run.triggered_by }}</span>
+            <td class="text-xs text-ink-500">
+              {{ run.kind }} · {{ run.trigger }}
+              <span v-if="run.triggered_by" class="block text-ink-400">{{ run.triggered_by }}</span>
             </td>
-            <td class="px-3 py-2"><StatusBadge :status="run.status" /></td>
-            <td class="px-3 py-2">
+            <td><StatusBadge :status="run.status" /></td>
+            <td>
               <VerifyBadge
                 :matched="run.verification === 'ok' ? true : run.verification === 'failed' ? false : null"
                 :detail="run.verification_detail"
               />
-              <p v-if="run.error_message" class="mt-1 max-w-xs text-xs text-red-600">{{ run.error_message }}</p>
+              <p v-if="run.error_message" class="mt-1 max-w-sm text-xs leading-relaxed text-red-600">
+                {{ run.error_message }}
+              </p>
             </td>
-            <td class="px-3 py-2 text-right tabular-nums">{{ run.row_count ?? '—' }}</td>
-            <td class="px-3 py-2 text-right text-xs text-slate-500">{{ run.duration_ms ?? '—' }} ms</td>
+            <td class="text-right tabular-nums">{{ run.row_count ?? '—' }}</td>
+            <td class="whitespace-nowrap text-right text-xs text-ink-500">{{ run.duration_ms ?? '—' }} ms</td>
           </tr>
         </tbody>
       </table>
@@ -117,8 +117,10 @@ watch(form, () => {
         v-for="(link, index) in runs.links"
         :key="index"
         :href="link.url"
-        class="rounded border border-slate-300 px-2.5 py-1 text-xs"
-        :class="link.active ? 'bg-slate-900 text-white' : 'text-slate-600'"
+        class="rounded-md border px-2.5 py-1 text-xs"
+        :class="link.active
+          ? 'border-ink-900 bg-ink-900 text-white'
+          : 'border-ink-300 bg-white text-ink-600 hover:bg-ink-50'"
         v-html="link.label"
       />
     </div>

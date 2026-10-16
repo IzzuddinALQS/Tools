@@ -6,51 +6,59 @@
     <title>Masuk — Oracle Data Sync</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="min-h-screen bg-slate-100 flex items-center justify-center px-4">
-    <div class="w-full max-w-sm">
-        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-5">
-            <div>
-                <h1 class="text-lg font-semibold text-slate-900">Oracle Data Sync</h1>
-                <p class="text-sm text-slate-500 mt-1">Alat internal untuk menyalin data Oracle ke PostgreSQL.</p>
+<body class="min-h-screen bg-ink-100">
+    <div class="flex min-h-screen items-center justify-center px-4 py-10">
+        <div class="w-full max-w-sm">
+            <!-- Kartu -->
+            <div class="surface p-7">
+                <div class="flex items-center gap-2.5">
+                    <span class="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-500/15"></span>
+                    <span class="text-[15px] font-semibold tracking-tight text-ink-900">Oracle Data Sync</span>
+                </div>
+
+                <p class="mt-2 text-sm leading-relaxed text-ink-500">
+                    Alat internal untuk menyalin data Oracle ke PostgreSQL.
+                    Oracle hanya dibaca, tidak pernah ditulis.
+                </p>
+
+                @if ($errors->any())
+                    <div class="mt-5 rounded-lg border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-700">
+                        {{ $errors->first() }}
+                    </div>
+                @endif
+
+                <form method="POST" action="{{ route('login.store') }}" class="mt-6 space-y-4">
+                    @csrf
+
+                    <div>
+                        <label for="email" class="label">Email</label>
+                        <input id="email" name="email" type="email" value="{{ old('email') }}" required autofocus
+                               autocomplete="username" placeholder="nama@perusahaan.co.id"
+                               class="input mt-1.5">
+                    </div>
+
+                    <div>
+                        <label for="password" class="label">Password</label>
+                        <input id="password" name="password" type="password" required
+                               autocomplete="current-password" placeholder="••••••••"
+                               class="input mt-1.5">
+                    </div>
+
+                    <label class="flex items-center gap-2 text-sm text-ink-600">
+                        <input type="checkbox" name="remember" value="1"
+                               class="h-4 w-4 rounded border-ink-300 text-brand-600 focus:ring-brand-500">
+                        Ingat saya
+                    </label>
+
+                    <button type="submit" class="btn-primary w-full">Masuk</button>
+                </form>
             </div>
 
-            @if ($errors->any())
-                <div class="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
-                    {{ $errors->first() }}
-                </div>
-            @endif
-
-            <form method="POST" action="{{ route('login.store') }}" class="space-y-4">
-                @csrf
-
-                <div>
-                    <label for="email" class="block text-sm font-medium text-slate-700 mb-1">Email</label>
-                    <input id="email" name="email" type="email" value="{{ old('email') }}" required autofocus
-                           autocomplete="username"
-                           class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900">
-                </div>
-
-                <div>
-                    <label for="password" class="block text-sm font-medium text-slate-700 mb-1">Password</label>
-                    <input id="password" name="password" type="password" required autocomplete="current-password"
-                           class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900">
-                </div>
-
-                <label class="flex items-center gap-2 text-sm text-slate-600">
-                    <input type="checkbox" name="remember" value="1" class="rounded border-slate-300">
-                    Ingat saya
-                </label>
-
-                <button type="submit"
-                        class="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
-                    Masuk
-                </button>
-            </form>
+            <p class="mt-5 text-center text-xs leading-relaxed text-ink-400">
+                Tidak ada pendaftaran mandiri. Akun dibuat admin lewat
+                <code class="rounded bg-ink-100 px-1 py-0.5 font-mono text-[11px] text-ink-600">php artisan tinker</code>.
+            </p>
         </div>
-
-        <p class="mt-4 text-xs text-slate-500 text-center">
-            Akun dibuat oleh admin lewat <code>php artisan</code>. Tidak ada pendaftaran mandiri.
-        </p>
     </div>
 </body>
 </html>

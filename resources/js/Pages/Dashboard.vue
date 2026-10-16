@@ -13,127 +13,131 @@ const props = defineProps({
 })
 
 const cards = computed(() => [
-  { label: 'Koneksi sumber', value: props.stats.connections },
-  { label: 'Target PostgreSQL', value: props.stats.targets },
-  { label: 'Dataset', value: props.stats.datasets },
-  { label: 'Dataset aktif', value: props.stats.datasets_active },
+  { label: 'Koneksi sumber', value: props.stats.connections, hint: 'mock / oracle' },
+  { label: 'Target PostgreSQL', value: props.stats.targets, hint: 'PG A + PG B' },
+  { label: 'Dataset', value: props.stats.datasets, hint: 'total terdaftar' },
+  { label: 'Dataset aktif', value: props.stats.datasets_active, hint: 'dijadwalkan' },
 ])
 </script>
 
 <template>
   <PageHeader title="Dashboard">
     <template #subtitle>
-      <p class="mt-1 text-sm text-slate-500">
-        Oracle hanya dibaca, tidak pernah ditulis. PG A menyimpan hasil query, PG B adalah salinan untuk aplikasi.
-      </p>
+      Oracle hanya dibaca, tidak pernah ditulis. PG A menyimpan hasil query,
+      PG B adalah salinan untuk aplikasi.
     </template>
 
     <template #actions>
-      <Link
-        href="/datasets/create"
-        class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800"
-      >
-        Dataset baru
-      </Link>
+      <Link href="/datasets/create" class="btn-primary">Dataset baru</Link>
     </template>
 
+    <!-- Statistik -->
     <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      <div
-        v-for="card in cards"
-        :key="card.label"
-        class="rounded-lg border border-slate-200 bg-white px-4 py-3"
-      >
-        <p class="text-xs uppercase tracking-wide text-slate-500">{{ card.label }}</p>
-        <p class="mt-1 text-2xl font-semibold">{{ card.value }}</p>
+      <div v-for="card in cards" :key="card.label" class="surface px-5 py-4">
+        <p class="eyebrow">{{ card.label }}</p>
+        <p class="mt-1.5 text-3xl font-semibold tabular-nums text-ink-900">{{ card.value }}</p>
+        <p class="mt-0.5 text-xs text-ink-400">{{ card.hint }}</p>
       </div>
     </div>
 
+    <!-- Dataset -->
     <section class="space-y-3">
-      <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Dataset</h2>
+      <div class="flex items-center justify-between">
+        <h2 class="eyebrow">Dataset</h2>
+        <Link href="/datasets" class="text-xs font-medium text-brand-700 hover:underline">Lihat semua</Link>
+      </div>
 
-      <div v-if="datasets.length === 0" class="rounded-lg border border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500">
-        Belum ada dataset. Mulai dari halaman Dataset, tulis query Oracle, lalu Preview.
+      <div v-if="datasets.length === 0" class="surface px-5 py-10 text-center">
+        <p class="text-sm text-ink-500">Belum ada dataset.</p>
+        <p class="mt-1 text-xs text-ink-400">
+          Mulai dari halaman Dataset: tulis query Oracle, tekan Preview, lalu simpan.
+        </p>
       </div>
 
       <div v-else class="space-y-3">
-        <div
-          v-for="dataset in datasets"
-          :key="dataset.id"
-          class="rounded-lg border border-slate-200 bg-white p-4"
-        >
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <Link :href="`/datasets/${dataset.id}`" class="font-medium text-slate-900 hover:underline">
-                {{ dataset.name }}
-              </Link>
-              <p class="mt-0.5 font-mono text-xs text-slate-500">{{ dataset.destination }}</p>
-            </div>
-
-            <div class="flex items-center gap-2">
-              <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700">
-                {{ dataset.sync_mode }}
-              </span>
-              <StatusBadge :status="dataset.status" />
-            </div>
-          </div>
-
+        <div v-for="dataset in datasets" :key="dataset.id" class="surface p-5">
           <WarningList
             v-if="dataset.warnings?.length"
-            class="mt-3"
+            class="mb-4"
             title="Mode incremental"
             :warnings="dataset.warnings"
           />
 
-          <dl class="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600 sm:grid-cols-4">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div class="min-w-0">
+              <Link :href="`/datasets/${dataset.id}`" class="font-medium text-ink-900 hover:text-brand-700 hover:underline">
+                {{ dataset.name }}
+              </Link>
+              <p class="mono mt-0.5 text-ink-500">{{ dataset.destination }}</p>
+            </div>
+            <div class="flex shrink-0 items-center gap-2">
+              <span class="badge-neutral">{{ dataset.sync_mode }}</span>
+              <StatusBadge :status="dataset.status" />
+            </div>
+          </div>
+
+          <dl class="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 border-t border-ink-100 pt-4 text-xs sm:grid-cols-4">
             <div>
-              <dt class="text-slate-400">Sumber</dt>
-              <dd>{{ dataset.connection }} ({{ dataset.driver }})</dd>
+              <dt class="text-ink-400">Sumber</dt>
+              <dd class="mt-0.5 font-medium text-ink-700">{{ dataset.connection }}
+                <span class="text-ink-400">({{ dataset.driver }})</span>
+              </dd>
             </div>
             <div>
-              <dt class="text-slate-400">Jadwal</dt>
-              <dd class="font-mono">{{ dataset.schedule_cron || '—' }}</dd>
+              <dt class="text-ink-400">Jadwal</dt>
+              <dd class="mono mt-0.5 text-ink-700">{{ dataset.schedule_cron || '—' }}</dd>
             </div>
             <div>
-              <dt class="text-slate-400">Sukses terakhir</dt>
-              <dd>{{ dataset.last_success_at || '—' }}</dd>
+              <dt class="text-ink-400">Sukses terakhir</dt>
+              <dd class="mt-0.5 text-ink-700">{{ dataset.last_success_at || '—' }}</dd>
             </div>
             <div>
-              <dt class="text-slate-400">Baris terakhir</dt>
-              <dd>{{ dataset.last_row_count ?? '—' }}</dd>
+              <dt class="text-ink-400">Baris terakhir</dt>
+              <dd class="mt-0.5 tabular-nums text-ink-700">{{ dataset.last_row_count ?? '—' }}</dd>
             </div>
           </dl>
         </div>
       </div>
     </section>
 
+    <!-- Eksekusi terakhir -->
     <section class="space-y-3">
-      <h2 class="text-sm font-semibold uppercase tracking-wide text-slate-500">Eksekusi terakhir</h2>
+      <div class="flex items-center justify-between">
+        <h2 class="eyebrow">Eksekusi terakhir</h2>
+        <Link href="/history" class="text-xs font-medium text-brand-700 hover:underline">Lihat riwayat lengkap</Link>
+      </div>
 
-      <div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
-        <table class="w-full text-left text-sm">
-          <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+      <div class="table-wrap">
+        <div v-if="recentRuns.length === 0" class="px-5 py-10 text-center text-sm text-ink-400">
+          Belum ada eksekusi.
+        </div>
+
+        <table v-else class="table">
+          <thead>
             <tr>
-              <th class="px-3 py-2">Waktu</th>
-              <th class="px-3 py-2">Dataset</th>
-              <th class="px-3 py-2">Jenis</th>
-              <th class="px-3 py-2">Status</th>
-              <th class="px-3 py-2">Verifikasi</th>
-              <th class="px-3 py-2 text-right">Baris</th>
+              <th>Waktu</th>
+              <th>Dataset</th>
+              <th>Jenis</th>
+              <th>Status</th>
+              <th>Verifikasi</th>
+              <th class="text-right">Baris</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-if="recentRuns.length === 0">
-              <td colspan="6" class="px-3 py-6 text-center text-slate-500">Belum ada eksekusi.</td>
-            </tr>
-            <tr v-for="run in recentRuns" :key="run.id" class="border-t border-slate-100">
-              <td class="px-3 py-2 text-xs text-slate-500">{{ run.finished_at || '—' }}</td>
-              <td class="px-3 py-2">
-                <Link :href="`/history/${run.id}`" class="hover:underline">{{ run.dataset }}</Link>
+            <tr v-for="run in recentRuns" :key="run.id">
+              <td class="whitespace-nowrap text-xs text-ink-500">{{ run.finished_at || '—' }}</td>
+              <td class="font-medium">
+                <Link :href="`/history/${run.id}`" class="hover:text-brand-700 hover:underline">{{ run.dataset }}</Link>
               </td>
-              <td class="px-3 py-2 text-xs text-slate-500">{{ run.kind }}</td>
-              <td class="px-3 py-2"><StatusBadge :status="run.status" /></td>
-              <td class="px-3 py-2"><VerifyBadge :matched="run.verification === 'ok' ? true : run.verification === 'failed' ? false : null" compact /></td>
-              <td class="px-3 py-2 text-right tabular-nums">{{ run.row_count ?? '—' }}</td>
+              <td class="text-xs text-ink-500">{{ run.kind }}</td>
+              <td><StatusBadge :status="run.status" /></td>
+              <td>
+                <VerifyBadge
+                  :matched="run.verification === 'ok' ? true : run.verification === 'failed' ? false : null"
+                  compact
+                />
+              </td>
+              <td class="text-right tabular-nums">{{ run.row_count ?? '—' }}</td>
             </tr>
           </tbody>
         </table>

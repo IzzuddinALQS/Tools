@@ -8,9 +8,9 @@
     "require": {
         "php": "^8.4",
         "inertiajs/inertia-laravel": "^3.5",
-        "laravel/framework": "^12.0",
-        "laravel/tinker": "^2.10.1",
-        "yajra/laravel-oci8": "^12.11"
+        "laravel/framework": "^13.37",
+        "laravel/tinker": "^3.0",
+        "yajra/laravel-oci8": "^13.14"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
@@ -50,7 +50,8 @@
             "@php artisan migrate --graceful --ansi"
         ],
         "serve": [
-            "@php -S 127.0.0.1:8000 server.php"
+            "Composer\\Config::disableProcessTimeout",
+            "@php -S 127.0.0.1:8000 -t public server.php"
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",

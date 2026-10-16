@@ -13,36 +13,58 @@ defineProps({
 
   <PageHeader title="Pause semua job">
     <template #subtitle>
-      <p class="mt-1 text-sm text-slate-500">
-        Kill switch. Saat aktif, tidak ada penulisan ke PostgreSQL A maupun B, dan job yang
-        sedang berjalan berhenti sebelum menulis.
-      </p>
+      Kill switch. Saat aktif, tidak ada penulisan ke PostgreSQL A maupun B.
     </template>
 
-    <div
-      class="rounded-lg border px-4 py-4"
-      :class="pause.paused ? 'border-purple-200 bg-purple-50' : 'border-emerald-200 bg-emerald-50'"
-    >
-      <p class="text-sm font-medium" :class="pause.paused ? 'text-purple-900' : 'text-emerald-900'">
-        {{ pause.paused ? 'Semua job sedang di-pause.' : 'Semua job sedang berjalan normal.' }}
-      </p>
+    <div class="surface p-6">
+      <div class="flex flex-wrap items-center justify-between gap-5">
+        <div class="flex items-center gap-4">
+          <span
+            class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-lg font-semibold"
+            :class="pause.paused ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'"
+          >
+            {{ pause.paused ? '‖' : '▶' }}
+          </span>
+          <div>
+            <p class="text-sm font-semibold text-ink-900">
+              {{ pause.paused ? 'Semua job sedang di-pause.' : 'Semua job berjalan normal.' }}
+            </p>
+            <dl v-if="pause.paused" class="mt-1 space-y-0.5 text-xs text-ink-500">
+              <div v-if="pause.at">
+                <dt class="inline text-ink-400">Sejak: </dt>
+                <dd class="inline">{{ pause.at }}</dd>
+              </div>
+              <div v-if="pause.reason">
+                <dt class="inline text-ink-400">Alasan: </dt>
+                <dd class="inline">{{ pause.reason }}</dd>
+              </div>
+            </dl>
+            <p v-else class="mt-1 text-xs text-ink-500">
+              Sinkronisasi dan copy berjalan sesuai jadwal masing-masing dataset.
+            </p>
+          </div>
+        </div>
 
-      <dl v-if="pause.paused" class="mt-2 text-xs text-purple-800">
-        <div><span class="opacity-70">Sejak:</span> {{ pause.at }}</div>
-        <div v-if="pause.reason"><span class="opacity-70">Alasan:</span> {{ pause.reason }}</div>
-      </dl>
-
-      <div class="mt-4">
         <PauseButton :paused="pause.paused" />
       </div>
     </div>
 
-    <div class="rounded-lg border border-slate-200 bg-white p-4 text-sm text-slate-600">
-      <p class="font-medium text-slate-800">Yang terjadi saat di-pause</p>
-      <ul class="mt-2 list-disc space-y-1 pl-5 text-xs">
-        <li>Job sinkronisasi dan copy berhenti dengan status <code>paused</code>, bukan <code>failed</code>.</li>
-        <li>Tabel staging yang belum selesai dibersihkan; tabel lama di PG A tetap utuh.</li>
-        <li>Riwayat tetap mencatat kejadiannya, jadi terlihat di halaman Riwayat.</li>
+    <div class="surface p-6">
+      <h2 class="text-sm font-semibold text-ink-900">Yang terjadi saat di-pause</h2>
+      <ul class="mt-3 space-y-2 text-[13px] leading-relaxed text-ink-600">
+        <li class="flex gap-2.5">
+          <span class="text-ink-300">•</span>
+          Job sinkronisasi dan copy berhenti dengan status <code class="rounded bg-ink-100 px-1 font-mono text-[11px]">paused</code>,
+          bukan <code class="rounded bg-ink-100 px-1 font-mono text-[11px]">failed</code>.
+        </li>
+        <li class="flex gap-2.5">
+          <span class="text-ink-300">•</span>
+          Tabel staging yang belum selesai dibersihkan; tabel lama di PG A tetap utuh.
+        </li>
+        <li class="flex gap-2.5">
+          <span class="text-ink-300">•</span>
+          Riwayat tetap mencatat kejadiannya, jadi terlihat di halaman Riwayat.
+        </li>
       </ul>
     </div>
   </PageHeader>

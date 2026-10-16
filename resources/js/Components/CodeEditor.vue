@@ -1,15 +1,14 @@
 <script setup>
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { EditorView, keymap, lineNumbers, highlightActiveLine } from '@codemirror/view'
+import { EditorView, keymap, lineNumbers, highlightActiveLine, drawSelection } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
-import { defaultKeymap, history, historyKeymap } from '@codemirror/commands'
+import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands'
 import { sql } from '@codemirror/lang-sql'
-import { syntaxHighlighting, defaultHighlightStyle } from '@codemirror/language'
+import { syntaxHighlighting, defaultHighlightStyle, indentOnInput } from '@codemirror/language'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
-  height: { type: String, default: '18rem' },
-  placeholder: { type: String, default: 'SELECT ... FROM APPS.TABEL' },
+  height: { type: String, default: '16rem' },
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -25,11 +24,19 @@ onMounted(() => {
       extensions: [
         lineNumbers(),
         history(),
-        keymap.of([...defaultKeymap, ...historyKeymap]),
+        drawSelection(),
+        indentOnInput(),
         highlightActiveLine(),
+        keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
         sql(),
-        syntaxHighlighting(defaultHighlightStyle),
+        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
         EditorView.lineWrapping,
+        EditorView.theme({
+          '&': { borderRadius: '0.5rem', border: '1px solid #cbd5e1', overflow: 'hidden' },
+          '&.cm-focused': { borderColor: '#3b68f5', boxShadow: '0 0 0 3px rgb(59 104 245 / 0.12)' },
+          '.cm-scroller': { minHeight: props.height, fontFamily: 'var(--font-mono)', fontSize: '13px' },
+          '.cm-content': { padding: '10px 0' },
+        }),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             emit('update:modelValue', update.state.doc.toString())
@@ -50,7 +57,6 @@ watch(
   () => props.modelValue,
   (value) => {
     if (!view) return
-
     const current = view.state.doc.toString()
 
     if (current !== value) {
@@ -61,9 +67,5 @@ watch(
 </script>
 
 <template>
-  <div
-    ref="host"
-    class="overflow-hidden rounded-lg border border-slate-300 bg-white text-sm [&_.cm-editor]:outline-none [&_.cm-editor_cm-frame]:px-3 [&_.cm-editor_cm-frame]:py-2"
-    :style="{ minHeight: height }"
-  />
+  <div ref="host" />
 </template>

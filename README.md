@@ -123,6 +123,7 @@ metadata tidak berguna, dan sebaliknya.
 | Composer | 2.x | — |
 | Node.js + npm | Versi yang didukung Vite 6 | Untuk `npm run build` |
 | PostgreSQL | **14+** | Tiga peran: metadata, PG A, PG B |
+| Laravel | **13.37** | `laravel/framework: ^13.37`, `yajra/laravel-oci8: ^13.14`, `inertiajs/inertia-laravel: ^3.5` |
 
 Ekstensi PHP yang wajib aktif:
 
@@ -404,7 +405,7 @@ npm run dev
 > Failed to listen on 127.0.0.1:8001 (reason: ?)
 > ```
 >
-> Penyebabnya bukan port yang sedang dipakai. Laravel 12 meneruskan environment
+> Penyebabnya bukan port yang sedang dipakai. Laravel 13 meneruskan environment
 > ke server bawaan PHP memakai daftar putih `ServeCommand::$passthroughVariables`
 > yang berisi `PATH` dan `SYSTEMROOT` huruf besar, sedangkan `$_ENV` Windows
 > menuliskan `Path` dan `SystemRoot`. Pencocokan `in_array()` bersifat
@@ -416,8 +417,11 @@ npm run dev
 > jadi tidak terkena masalah ini. Perintah yang setara:
 >
 > ```bash
-> php -S 127.0.0.1:8000 server.php
+> php -S 127.0.0.1:8000 -t public server.php
 > ```
+>
+> Berkas `server.php` di root dibuat manual karena Laravel 11+ tidak lagi
+> menyediakannya, padahal perintah ini membutuhkannya.
 >
 > Di Linux `php artisan serve` tidak bermasalah, dan `composer serve` tetap aman
 > dipakai di kedua platform.
@@ -442,6 +446,19 @@ App\Models\User::create([
 Kolom `password` memakai cast `hashed`, jadi isikan plaintext apa adanya — Laravel
 yang menghash-nya. Peran yang tersedia hanya `admin` dan `viewer`
 (`app/Enums/UserRoleEnum.php`); `canManage()` hanya berlaku untuk `admin`.
+
+> **Dua hal yang sering bikin halaman tampil tanpa style.** Keduanya sudah
+> diperbaiki di repo ini, tapi perlu diketahui kalau setup diulang:
+>
+> 1. Plugin `tailwindcss()` harus terdaftar di `vite.config.js`. Tanpa itu
+>    Tailwind tidak pernah dijalankan: `@apply` menjadi CSS tidak valid yang
+>    diabaikan browser, dan nol utility class yang dihasilkan.
+> 2. Daftar `@source` di `resources/css/app.css` tidak boleh dihapus. Tanpa itu
+>    pemindaian template bisa gagal diam-diam.
+>
+> Gejalanya sama: HTML tampil mentah tanpa warna, jarak, maupun border.
+> Perbaikan: `npm run build`, lalu **restart** `npm run dev` karena Vite tidak
+> memuat ulang `vite.config.js` secara otomatis.
 
 ### 3. Buat Connection dengan driver `mock` (halaman Driver, atau `tinker`)
 

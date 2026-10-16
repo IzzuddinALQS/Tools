@@ -1,1 +1,213 @@
 @import 'tailwindcss';
+
+/* ------------------------------------------------------------------
+   Sumber konten Tailwind (WAJIB, jangan dihapus)
+   ------------------------------------------------------------------
+   Tailwind v4 hanya menghasilkan utility class yang benar-benar dipakai.
+   Deteksi otomatisnya bisa gagal diam-diam (utility tidak ikut ter-build,
+   halaman tampil tanpa style). Karena itu semua lokasi template
+   didaftarkan eksplisit di sini.
+------------------------------------------------------------------- */
+@source '../../app/**/*.php';
+@source '../../database/**/*.php';
+@source '../../resources/js/**/*.vue';
+@source '../../resources/js/**/*.js';
+@source '../../resources/views/**/*.blade.php';
+
+/* ------------------------------------------------------------------
+   Design tokens
+   ------------------------------------------------------------------
+   Satu sumber kebenaran warna, radius, dan shadow supaya seluruh panel
+   terasa berasal dari satu sistem, bukan kumpulan kartu putih.
+------------------------------------------------------------------- */
+@theme {
+  --font-sans: 'Inter var', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', 'Cascadia Mono', Menlo, monospace;
+
+  --color-ink-50: #f8fafc;
+  --color-ink-100: #f1f5f9;
+  --color-ink-200: #e2e8f0;
+  --color-ink-300: #cbd5e1;
+  --color-ink-400: #94a3b8;
+  --color-ink-500: #64748b;
+  --color-ink-600: #475569;
+  --color-ink-700: #334155;
+  --color-ink-800: #1e293b;
+  --color-ink-900: #0f172a;
+  --color-ink-950: #020617;
+
+  --color-brand-50: #eef4ff;
+  --color-brand-100: #dae6ff;
+  --color-brand-200: #bdd2ff;
+  --color-brand-300: #90b4ff;
+  --color-brand-400: #5c8bff;
+  --color-brand-500: #3b68f5;
+  --color-brand-600: #254ae0;
+  --color-brand-700: #1d3ab6;
+  --color-brand-800: #1e348f;
+  --color-brand-900: #1e2f70;
+
+  --radius-card: 0.875rem;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-ink-100 text-ink-800 font-sans;
+  }
+
+  ::selection {
+    @apply bg-brand-200 text-brand-900;
+  }
+
+  /* Fokus keyboard harus selalu terlihat, tapi tidakaik. */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand-500;
+  }
+}
+
+/* ------------------------------------------------------------------
+   Utilitas dasar
+   ------------------------------------------------------------------
+   Didaftarkan lewat `@utility`, bukan class biasa di dalam
+   @layer components, karena Tailwind v4 hanya mengizinkan `@apply`
+   terhadap utility sungguhan. Varian di bawah tetap bisa menyusunnya.
+------------------------------------------------------------------- */
+@utility btn {
+  @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2
+         text-sm font-medium transition
+         disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@utility badge {
+  @apply inline-flex items-center gap-1 rounded-md px-2 py-0.5
+         text-[11px] font-medium ring-1 ring-inset;
+}
+
+@utility input {
+  @apply w-full rounded-lg border border-ink-300 bg-white px-3 py-2 text-sm text-ink-800
+         placeholder:text-ink-400
+         focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none;
+}
+
+@layer components {
+  /* ---------------- Surface ---------------- */
+  .surface {
+    @apply rounded-[var(--radius-card)] border border-ink-200/80 bg-white;
+    box-shadow:
+      0 1px 2px 0 rgb(15 23 42 / 0.04),
+      0 1px 3px 0 rgb(15 23 42 / 0.06);
+  }
+
+  .surface-quiet {
+    @apply rounded-[var(--radius-card)] border border-ink-200/70 bg-ink-50/70;
+  }
+
+  /* ---------------- Tipografi ---------------- */
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-400;
+  }
+
+  .page-title {
+    @apply text-2xl font-semibold tracking-tight text-ink-900;
+  }
+
+  .mono {
+    @apply font-mono text-[13px];
+  }
+
+  /* ---------------- Tombol ---------------- */
+  .btn-primary {
+    @apply btn bg-ink-900 text-white shadow-sm hover:bg-ink-800 active:bg-ink-950;
+  }
+
+  .btn-secondary {
+    @apply btn border border-ink-300 bg-white text-ink-700 hover:bg-ink-50 hover:border-ink-400;
+  }
+
+  .btn-ghost {
+    @apply btn text-ink-600 hover:bg-ink-100 hover:text-ink-900;
+  }
+
+  .btn-danger {
+    @apply btn border border-red-200 bg-white text-red-700 hover:bg-red-50 hover:border-red-300;
+  }
+
+  .btn-sm {
+    @apply px-2.5 py-1.5 text-xs;
+  }
+
+  .btn-xs {
+    @apply rounded-md px-2 py-1 text-[11px];
+  }
+
+  /* ---------------- Form ---------------- */
+  .label {
+    @apply block text-sm font-medium text-ink-700;
+  }
+
+  .hint {
+    @apply mt-1 block text-xs text-ink-500;
+  }
+
+  .input-sm {
+    @apply input px-2.5 py-1.5 text-xs;
+  }
+
+  /* ---------------- Tabel ---------------- */
+  .table-wrap {
+    @apply overflow-hidden rounded-[var(--radius-card)] border border-ink-200/80 bg-white;
+    box-shadow: 0 1px 2px 0 rgb(15 23 42 / 0.04);
+  }
+
+  .table-scroll {
+    @apply max-h-[28rem] overflow-auto;
+  }
+
+  .table {
+    @apply w-full border-collapse text-left text-sm;
+  }
+
+  .table thead th {
+    @apply sticky top-0 z-10 bg-ink-50/95 px-4 py-2.5 text-[11px] font-semibold
+           uppercase tracking-[0.06em] text-ink-500 backdrop-blur;
+  }
+
+  .table tbody td {
+    @apply border-t border-ink-100 px-4 py-2.5 align-middle text-ink-700;
+  }
+
+  .table tbody tr:hover td {
+    @apply bg-brand-50/40;
+  }
+
+  /* ---------------- Badge ---------------- */
+  .badge-neutral { @apply badge bg-ink-100 text-ink-700 ring-ink-200; }
+  .badge-success { @apply badge bg-emerald-50 text-emerald-700 ring-emerald-200; }
+  .badge-danger  { @apply badge bg-red-50 text-red-700 ring-red-200; }
+  .badge-warning { @apply badge bg-amber-50 text-amber-800 ring-amber-200; }
+  .badge-info    { @apply badge bg-brand-50 text-brand-700 ring-brand-200; }
+  .badge-purple  { @apply badge bg-purple-50 text-purple-700 ring-purple-200; }
+
+  /* ---------------- CodeMirror SQL editor ---------------- */
+  .cm-editor {
+    background: #fbfcfe;
+    font-family: var(--font-mono);
+    font-size: 13px;
+  }
+  .cm-editor.cm-focused {
+    outline: none;
+    background: #ffffff;
+  }
+  .cm-gutters {
+    background: #f5f7fa;
+    border-right: 1px solid #e2e8f0;
+    color: #94a3b8;
+  }
+  .cm-activeLine { background: #f1f5f9; }
+  .cm-activeLineGutter { background: #e8edf4; }
+}

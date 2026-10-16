@@ -11,32 +11,26 @@ const names = computed(() => props.columns.map((column) => column.name))
 </script>
 
 <template>
-  <div class="overflow-hidden rounded-lg border border-slate-200 bg-white">
-    <div v-if="rows.length === 0" class="px-4 py-6 text-center text-sm text-slate-500">
+  <div class="table-wrap">
+    <div v-if="rows.length === 0" class="px-4 py-10 text-center text-sm text-ink-400">
       {{ emptyText }}
     </div>
 
-    <div v-else class="max-h-96 overflow-auto">
-      <table class="w-full border-collapse text-left text-sm">
-        <thead class="sticky top-0 bg-slate-50">
+    <div v-else class="table-scroll">
+      <table class="table">
+        <thead>
           <tr>
-            <th
-              v-for="name in names"
-              :key="name"
-              class="whitespace-nowrap border-b border-slate-200 px-3 py-2 font-medium text-slate-700"
-            >
-              {{ name }}
-            </th>
+            <th v-for="name in names" :key="name" class="whitespace-nowrap">{{ name }}</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(row, index) in rows" :key="index" class="border-b border-slate-100 last:border-0">
+          <tr v-for="(row, index) in rows" :key="index">
             <td
               v-for="name in names"
               :key="name"
-              class="max-w-xs truncate px-3 py-1.5 align-top text-slate-700"
+              class="max-w-[22rem] truncate font-mono text-[12.5px]"
+              :class="row[name] === 'NULL' ? 'text-ink-300' : 'text-ink-700'"
               :title="row[name] ?? 'NULL'"
-              :class="row[name] === 'NULL' ? 'italic text-slate-400' : ''"
             >
               {{ row[name] }}
             </td>
