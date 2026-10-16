@@ -1252,7 +1252,23 @@ APP_DEBUG=false
 | `APP_DEBUG` | `false` | Pesan error tidak boleh membocorkan detail |
 | `CACHE_STORE` | `redis` | **Wajib shared antar worker bila multi-host** |
 | `SYNC_LOCK_STORE` | `redis` | Lock sinkronisasi harus terlihat oleh semua worker |
-| `SESSION_ENCRYPT` | `true` | Token API sempat lewat session; tanpa ini nilainya tersimpan apa adanya di tabel `sessions` |
+| `SESSION_ENCRYPT` | `true` | Session memuat `_token` dan email tanpa perlindungan apa pun tanpa ini; token API juga ditolak |
+
+### Jika aplikasi berjalan di belakang reverse proxy
+
+Isi `TRUSTED_PROXIES` dengan IP proxy sungguhan, dipisah koma:
+
+```dotenv
+TRUSTED_PROXIES=10.0.0.1,10.0.0.2
+```
+
+Tanpa ini, `$request->ip()` mengembalikan **IP proxy**, bukan IP klien —
+pembatasan IP pada token API akan menilai IP yang salah. Aplikasi menolak
+request bertoken yang punya daftar IP bila header proxy terlihat tapi tidak ada
+proxy tepercaya, dengan `409` dan pesan yang menyebut variabel yang perlu diisi.
+
+> **Jangan isi `*`.** Dengan wildcard, siapa pun bisa memalsukan
+> `X-Forwarded-For` dan pembatasan IP kehilangan seluruh artinya.
 
 `SYNC_LOCK_STORE` menentukan cache store yang dipakai `Cache::store(...)` untuk
 lock per dataset. Kalau store-nya **tidak shared** (misalnya `array`, atau

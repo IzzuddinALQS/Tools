@@ -15,10 +15,10 @@ kriteria terima.
 | B1 | `SYNC_LOCK_STORE` adalah konfigurasi mati | Tinggi | **Selesai** |
 | B2 | `DatasetLock::run()` melapor salah saat cache mati | Tinggi | **Selesai** |
 | B3 | Token plaintext tersimpan di tabel `sessions` | Tinggi | **Selesai** |
-| B4 | `TrustProxies` tak dikonfigurasi, `allowed_ips` salah baca | Tinggi | Belum |
+| B4 | `TrustProxies` tak dikonfigurasi, `allowed_ips` salah baca | Tinggi | **Selesai** |
 | B5 | Login tanpa throttle | Sedang | **Selesai** |
 | B6 | Tidak ada cara ganti password | Sedang | Belum |
-| D1 | `.env.example` masih default Laravel | Sedang | Belum |
+| D1 | `.env.example` masih default Laravel | Sedang | **Selesai** |
 | D2 | Klaim README soal penyimpanan token kurang tepat | Rendah | **Selesai** |
 | U1 | API tak bisa membedakan "sedang berjalan" | Rendah | Belum |
 | U2 | Dua lookup token per panggilan API | Rendah | Belum |
@@ -28,12 +28,13 @@ kriteria terima.
 | U6 | Rantai sync → copy dari pemicu API belum diuji | Rendah | Belum |
 
 Urutan tackling yang disarankan: **B1 → B3 → B5 → B2 → B4**.
-Empat yang pertama sudah selesai. Tersisa: **B4, B6, D1, U1–U6**.
+Enam pertama sudah selesai (B1, B2, B3, B4, B5, D1, D2). Tersisa:
+**B6, U1–U6**.
 
-> **Catatan B1.** Nilai `SYNC_LOCK_STORE` kini benar-benar dibaca, tapi
-> `SYNC_LOCK_STORE=redis` di `.env.example` masih belum ditulis karena berkas
-> itu sendiri masih default Laravel (lihat D1). Sudah ditulis lengkap di
-> `SETUP-LAPTOP.md`.
+> **B1 sudah tuntas.** Nilai `SYNC_LOCK_STORE` dibaca kode, dan `.env.example`
+> sekarang memuatnya beserta penjelasan kapan Redis wajib — jadi instalasi baru
+> tidak lagi diam-diam memakai lock yang tidak shared. `EnvExampleTest`
+> menjaga berkas itu tidak kembali membusuk.
 
 ---
 
@@ -318,7 +319,7 @@ mentah dan memastikan nilai asli tidak ada di sana.
 
 ### B4 — `TrustProxies` tak dikonfigurasi, `allowed_ips` salah baca
 
-**Severity: Tinggi**
+**Severity: Tinggi** · **Status: SELESAI**
 
 #### Gejala
 
@@ -361,8 +362,46 @@ mempertimbangkan deployment di belakang proxy.
 
 #### Kriteria terima
 
-- Test mensimulasikan header proxy dan memastikan IP yang dipakai adalah IP klien.
-- Perilaku "proxy tidak dikonfigurasi" diuji secara eksplisit.
+- [x] Test mensimulasikan header proxy dan memastikan IP yang dipakai adalah IP klien.
+- [x] Perilaku "proxy tidak dikonfigurasi" diuji secara eksplisit.
+
+#### Yang dikerjakan
+
+**`TRUSTED_PROXIES` jadi konfigurasi nyata.** Dibaca lewat
+`App\Support\TrustedProxy`, dipasang di `bootstrap/app.php`:
+
+```php
+$middleware->trustProxies(
+    at: TrustedProxy::list(),
+    headers: Request::HEADER_X_FORWARDED_FOR
+        | Request::HEADER_X_FORWARDED_HOST
+        | Request::HEADER_X_FORWARDED_PORT
+        | Request::HEADER_X_FORWARDED_PROTO
+        | Request::HEADER_X_FORWARDED_AWS_ELB,
+);
+```
+
+Kosong secara default, dan itu disengaja. **`'*'` tidak pernah dipakai** — begitu
+wildcard aktif, siapa pun bisa memalsukan `X-Forwarded-For` dan pembatasan IP
+kehilangan seluruh artinya.
+
+**Gagal tertutup kalau IP klien tidak bisa dipastikan.** `AuthenticateApiToken`
+menolak request bertoken yang punya daftar IP, bila header proxy terlihat tapi
+tidak ada proxy tepercaya:
+
+```json
+{
+  "message": "IP klien tidak bisa dipastikan, jadi pembatasan IP pada token tidak dapat dievaluasi. Set TRUSTED_PROXIES untuk aplikasi ini.",
+  "reason": "proxy_header_present_but_untrusted:X-Forwarded-For"
+}
+```
+
+Diperiksa **sebelum** `allowsIp()`. Kalau urutannya dibalik, request sudah
+ditolak 403 dengan alasan yang menyesatkan sebelum pesan yang benar ini sempat
+muncul.
+
+Token tanpa daftar IP tidak terganggu — header proxy yang tidak dipercaya tidak
+mengganggunya, karena bagaimanapun IP-nya tidak relevan.
 
 ---
 
@@ -465,12 +504,18 @@ sesi aktif dengan tombol cabut. Scope-nya kecil, tapi menutup risiko B3 dan B5.
 
 ### D1 — `.env.example` masih default Laravel
 
-IT yang ikut berkas ini akan salah setup total: namespace database yang keliru,
-driver `sqlite`, dan tidak ada satu pun variabel yang dibutuhkan tool ini
-(`SYNC_LOCK_STORE`, driver OCI8, batas laju API, dan seterusnya).
+**Status: SELESAI**
 
-Perlu diisi ulang dari `.env` yang benar-benar dipakai, dengan nilai yang
-terverifikasi bekerja — bukan apa adanya.
+`.env.example` ditulis ulang: seluruh variabel yang dibutuhkan tool ini, dengan
+nilai yang disamakan dengan `phpunit.xml` supaya test langsung jalan, plus
+penjelasan singkat untuk yang rawan salah paham (`SYNC_LOCK_STORE`,
+`SESSION_ENCRYPT`, `TRUSTED_PROXIES`).
+
+Yang paling penting: **`EnvExampleTest` (6 test)** sekarang menjaga berkas itu
+tidak kembali membusuk. Begitu ada variabel baru yang dibutuhkan, test gagal
+sampai `.env.example` ikut diperbarui. Salah satu testnya juga memastikan
+`DB_PORT` di `.env.example` sama dengan `phpunit.xml` — persis jebakan yang
+tidak terduga saat pindah mesin.
 
 ---
 

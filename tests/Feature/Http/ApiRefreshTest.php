@@ -161,6 +161,45 @@ class ApiRefreshTest extends SyncTestCase
         Queue::assertNothingPushed();
     }
 
+    public function test_gagal_tertutup_saat_proxy_ada_tapi_tidak_tepercaya(): void
+    {
+        /*
+         * Tanpa TRUSTED_PROXIES, $request->ip() adalah IP proxy — bukan IP
+         * klien. Sebelumnya ini menghasilkan 403 dengan alasan yang menyesatkan,
+         * atau (lebih buruk) lolos kalau IP proxy kebetulan terdaftar.
+         */
+        Queue::fake();
+
+        $dataset = $this->dataset();
+        [$token, $plain] = $this->issueToken($dataset);
+        $token->forceFill(['allowed_ips' => ['10.0.0.1']])->save();
+
+        $this->withHeader('Authorization', 'Bearer '.$plain)
+            ->withHeader('X-Forwarded-For', '10.0.0.1')
+            ->postJson($this->url($dataset))
+            ->assertStatus(409)
+            ->assertJsonPath('reason', 'proxy_header_present_but_untrusted:X-Forwarded-For');
+
+        Queue::assertNothingPushed();
+    }
+
+    public function test_token_tanpa_daftar_ip_tidak_terganggu_proxy(): void
+    {
+        /*
+         * Token tanpa daftar IP tidak peduli IP berapa pun, jadi header proxy
+         * yang tidak dipercaya tidak boleh mengganggunya.
+         */
+        Queue::fake();
+
+        $dataset = $this->dataset();
+        [, $plain] = $this->issueToken($dataset);
+
+        $this->withHeader('Authorization', 'Bearer '.$plain)
+            ->withHeader('X-Forwarded-For', '203.0.113.9')
+            ->postJson($this->url($dataset))
+            ->assertAccepted();
+    }
+
     public function test_menolak_saat_kill_switch_aktif(): void
     {
         Queue::fake();
