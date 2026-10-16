@@ -1185,9 +1185,9 @@ php artisan ods:token armors --dataset=po-headers --name="laptop budi"
 php artisan ods:token armors --dataset=po-headers --ip=10.0.0.5 --rate-limit=30
 ```
 
-Nilai token **hanya ditampilkan sekali**, di CLI maupun di panel. Setelah itu
-yang tersimpan hanya SHA-256-nya — sama seperti password. Kehilangan berarti
-membuat token baru lalu mencabut yang lama:
+Nilai token **hanya ditampilkan sekali**, di CLI maupun di panel. Yang
+disimpan di tabel `api_tokens` hanya SHA-256-nya — sama seperti password.
+Kehilangan berarti membuat token baru lalu mencabut yang lama:
 
 ```bash
 php artisan ods:token-revoke <uid-token> --reason="laptop hilang"
@@ -1206,6 +1206,12 @@ insiden. Setelah dicabut, permintaan berikutnya langsung `403`.
 | Pembatas laju | Per token, dari kolom `rate_limit_per_minute` (bawaan 10/menit) |
 | Daftar IP | Opsional per token; kosong = semua IP diizinkan |
 | Pencabutan | Instan, tanpa menunggu worker |
+
+> **Wajib di produksi: `SESSION_ENCRYPT=true`.** Nilai asli token dikirim ke
+> browser lewat flash Inertia, jadi sempat melintasi session. Dengan session
+> driver `database` dan enkripsi nonaktif, nilai itu tersimpan apa adanya di
+> tabel `sessions` sampai sesi kadaluarsa — default 120 menit. Menyimpan
+> token sebagai hash saja belum cukup kalau session-nya tidak terenkripsi.
 
 Pembatas laju sengaja dijalankan **sebelum** middleware token. Tanpa token yang
 dikenal, kuota dihitung per IP supaya permintaan anonim ikut terlindungi dan tidak
@@ -1243,6 +1249,7 @@ APP_DEBUG=false
 | `APP_DEBUG` | `false` | Pesan error tidak boleh membocorkan detail |
 | `CACHE_STORE` | `redis` | **Wajib shared antar worker bila multi-host** |
 | `SYNC_LOCK_STORE` | `redis` | Lock sinkronisasi harus terlihat oleh semua worker |
+| `SESSION_ENCRYPT` | `true` | Token API sempat lewat session; tanpa ini nilainya tersimpan apa adanya di tabel `sessions` |
 
 `SYNC_LOCK_STORE` menentukan cache store yang dipakai `Cache::lock()` untuk lock
 per dataset. Kalau store-nya **tidak shared** (misalnya `array`, atau `file` pada
