@@ -45,10 +45,11 @@ membuka koneksi dengan hak selain `SELECT`.
 12. [Aturan "Sama Persis"](#aturan-sama-persis)
 13. [Keamanan](#keamanan)
 14. [User Read-Only untuk PG B](#user-read-only-untuk-pg-b)
-15. [Deploy](#deploy)
-16. [Pengujian](#pengujian)
-17. [Checklist Serah Terima ke IT](#checklist-serah-terima-ke-it)
-18. [Batasan yang Diketahui](#batasan-yang-diketahui)
+15. [API Tahap 2: Minta Sinkronisasi](#api-tahap-2-minta-sinkronisasi)
+16. [Deploy](#deploy)
+17. [Pengujian](#pengujian)
+18. [Checklist Serah Terima ke IT](#checklist-serah-terima-ke-it)
+19. [Batasan yang Diketahui](#batasan-yang-diketahui)
 
 ---
 
@@ -891,6 +892,17 @@ Menjadikan kill switch aktif: seluruh job berhenti dan tidak ada penulisan ke
 PG A maupun PG B. Statusnya disimpan di tabel `settings` — bukan di cache —
 supaya konsisten antar beberapa worker dan bertahan setelah restart.
 
+### `ods:token` dan `ods:token-revoke`
+
+```bash
+php artisan ods:token armors --dataset=po-headers --name="laptop budi"
+php artisan ods:token-revoke <uid-token> --reason="laptop hilang"
+```
+
+Terbitkan dan cabut token API Tahap 2 dari terminal. Nilai token hanya
+ditampilkan sekali. Penjelasan lengkap ada di
+[API Tahap 2](#api-tahap-2-minta-sinkronisasi).
+
 ---
 
 ## Aturan "Sama Persis"
@@ -1121,6 +1133,98 @@ Contoh keluaran:
 
 Tambahkan `dataset_name` ke daftar kolom bila aplikasi memakai lebih dari satu
 dataset dari PostgreSQL B yang sama.
+
+---
+
+## API Tahap 2: Minta Sinkronisasi
+
+Tahap 2 memberi aplikasi luar (mis. ARMORS) satu cara meminta sinkronisasi
+dimulai, tanpa diberi akses ke panel dan tanpa bisa menyentuh Oracle.
+
+### Bentuk API
+
+```http
+POST /api/v1/targets/{target_uid}/datasets/{dataset_uid}/refresh
+Authorization: Bearer <token>
+Accept: application/json
+```
+
+`{target_uid}` dan `{dataset_uid}` adalah UUID, bukan id berurutan. Keduanya
+bisa disalin langsung dari halaman Driver.
+
+Contoh jawaban sukses:
+
+```json
+{
+  "message": "Sinkronisasi dijadwalkan.",
+  "status": "queued",
+  "dataset": "po-headers",
+  "trigger": "api"
+}
+```
+
+Status `202` dipakai karena job-nya benar-benar sudah masuk antrean, belum
+selesai. Kalau aplikasi butuh tahu hasil akhirnya, poll halaman Riwayat — API ini
+sengaja tidak mengembalikan isi data.
+
+### Yang tidak bisa dilakukan endpoint ini
+
+- **Tidak menerima SQL.** Tidak ada parameter query sama sekali. SQL dan
+  pemetaan kolom diambil dari versi dataset yang sudah disetujui admin.
+- **Tidak menulis ke Oracle.** Sama seperti panel, jalur ke Oracle hanya baca.
+- **Tidak berlaku lintas dataset.** Satu token terikat pada satu pasangan
+  target + dataset; mencoba URL dataset lain akan `403`.
+
+### Menerbitkan token
+
+Token diterbitkan dari **halaman Driver**, seksi "Token API (Tahap 2)", atau
+lewat perintah:
+
+```bash
+php artisan ods:token armors --dataset=po-headers --name="laptop budi"
+php artisan ods:token armors --dataset=po-headers --ip=10.0.0.5 --rate-limit=30
+```
+
+Nilai token **hanya ditampilkan sekali**, di CLI maupun di panel. Setelah itu
+yang tersimpan hanya SHA-256-nya — sama seperti password. Kehilangan berarti
+membuat token baru lalu mencabut yang lama:
+
+```bash
+php artisan ods:token-revoke <uid-token> --reason="laptop hilang"
+php artisan ods:token-revoke --app=armors --all
+```
+
+Cabut, bukan hapus, supaya riwayat penaggunannya masih bisa dibaca saat menelusuri
+insiden. Setelah dicabut, permintaan berikutnya langsung `403`.
+
+### Batas keamanan
+
+| Lapis | Cara kerja |
+| --- | --- |
+| Pencocokan token | SHA-256 token dicocokkan lewat query terindeks `token_hash`; nilai asli tidak pernah dibandingkan, tidak pernah disimpan, dan tidak pernah di-log |
+| Wewenang | Token hanya berlaku untuk satu pasangan target + dataset |
+| Pembatas laju | Per token, dari kolom `rate_limit_per_minute` (bawaan 10/menit) |
+| Daftar IP | Opsional per token; kosong = semua IP diizinkan |
+| Pencabutan | Instan, tanpa menunggu worker |
+
+Pembatas laju sengaja dijalankan **sebelum** middleware token. Tanpa token yang
+dikenal, kuota dihitung per IP supaya permintaan anonim ikut terlindungi dan tidak
+langsung membanjiri database.
+
+### Butuh queue worker
+
+Job sinkronisasi masuk ke antrean `sync`, jadi **queue worker wajib berjalan**
+(api ini akan mengembalikan `202` tetapi tidak ada yang dikerjakan kalau worker
+mati). Lihat [Queue Worker & Scheduler](#queue-worker--scheduler).
+
+### Kode contoh pemanggil
+
+```bash
+curl -X POST \
+  "https://ods.internal/api/v1/targets/$TARGET_UID/datasets/$DATASET_UID/refresh" \
+  -H "Authorization: Bearer $ODS_TOKEN" \
+  -H "Accept: application/json"
+```
 
 ---
 

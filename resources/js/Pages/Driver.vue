@@ -397,12 +397,20 @@ const errorsOf = (form) => Object.entries(form.errors).flatMap(([key, messages])
           <div>
             <span class="eyebrow">Panggilan dari aplikasi</span>
             <div class="mt-1.5 flex items-center gap-2">
-              <code class="mono flex-1 overflow-x-auto rounded-lg border border-emerald-300 bg-white px-3 py-2 text-[12.5px] text-ink-900">POST /api/v1/targets/{{ revealed.target_uid }}/datasets/{{ revealed.dataset_uid }}/refresh</code>
+              <!--
+                Verb HTTP sengaja TIDAK ikut di dalam blok kode. Kalau ikut,
+                menyalin teks secara manual menghasilkan URL yang rusak karena
+                diawali "POST ".
+              -->
+              <code class="mono flex-1 overflow-x-auto rounded-lg border border-emerald-300 bg-white px-3 py-2 text-[12.5px] text-ink-900">/api/v1/targets/{{ revealed.target_uid }}/datasets/{{ revealed.dataset_uid }}/refresh</code>
               <button type="button" class="btn-secondary btn-xs shrink-0" @click="copy(`/api/v1/targets/${revealed.target_uid}/datasets/${revealed.dataset_uid}/refresh`, 'url')">
                 {{ copied === 'url' ? 'Tersalin' : 'Salin' }}
               </button>
             </div>
-            <p class="hint mt-1">Header: <code class="mono">Authorization: Bearer &lt;token&gt;</code></p>
+            <p class="hint mt-1">
+              Method <code class="mono">POST</code>, header
+              <code class="mono">Authorization: Bearer &lt;token&gt;</code>
+            </p>
           </div>
         </div>
       </div>
