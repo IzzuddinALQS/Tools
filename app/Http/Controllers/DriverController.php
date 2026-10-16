@@ -12,10 +12,13 @@ use App\Services\Pg\PgConnectionResolver;
 use App\Services\Source\SourceReaderFactory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 /**
  * Halaman Driver: koneksi sumber (mock / oracle) dan target PostgreSQL.
@@ -124,7 +127,44 @@ class DriverController extends Controller
                     'target_uid' => $dataset->target?->uid,
                     'uid' => $dataset->uid,
                 ]),
+
+            /*
+             * Token yang baru diterbitkan ditarik di sini, BUKAN oleh Inertia
+             * secara otomatis, supaya nilai aslinya bisa didekripsi dulu di
+             * server. Yang masuk ke session hanya ciphertext.
+             *
+             * pullFlashed() bersifat sekali pakai: setelah dipanggil, request
+             * berikutnya tidak akan menemukan apa pun, jadi nilai asli benar
+             * benar hilang dari sisi server.
+             */
+            'issuedToken' => $this->pullIssuedToken(),
         ]);
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    private function pullIssuedToken(): ?array
+    {
+        $flashed = Inertia::pullFlashed(request());
+
+        if (! isset($flashed['issuedToken']) || ! is_array($flashed['issuedToken'])) {
+            return null;
+        }
+
+        $issued = $flashed['issuedToken'];
+
+        try {
+            $issued['plain'] = Crypt::decryptString((string) $issued['plain']);
+        } catch (Throwable) {
+            // Tidak bisa didekripsi (mis. APP_KEY berubah). Lebih baik tidak
+            // menampilkan apa-apa daripada mengirim ciphertext ke browser.
+            Log::warning('Token yang baru diterbitkan tidak bisa didekripsi.');
+
+            return null;
+        }
+
+        return $issued;
     }
 
     public function storeConnection(Request $request): RedirectResponse

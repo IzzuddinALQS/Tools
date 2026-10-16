@@ -18,7 +18,14 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::get('/login', [LoginController::class, 'show'])->name('login');
-Route::post('/login', [LoginController::class, 'store'])->middleware('guest')->name('login.store');
+/*
+ * Throttle 5 percobaan per menit per kombinasi IP + email. Tanpa ini, panel
+ * ini terbuka untuk brute force karena jadi satu-satunya jalan ke kredensial
+ * koneksi dan token API.
+ */
+Route::post('/login', [LoginController::class, 'store'])
+    ->middleware(['guest', 'throttle:login'])
+    ->name('login.store');
 Route::post('/logout', [LoginController::class, 'destroy'])->name('logout');
 
 Route::middleware('auth')->group(function (): void {

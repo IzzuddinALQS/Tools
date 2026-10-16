@@ -39,6 +39,11 @@ class SyncRunner
             fn () => $this->execute($dataset, $run, $forceFull),
         );
 
+        /*
+         * null HANYA berarti lock sedang dipegang proses lain. Kalau cache
+         * store mati, DatasetLock sengaja tetap menjalankan callback-nya (bukan
+         * null) supaya satu outage tidak menghentikan seluruh sinkronisasi.
+         */
         if ($result === null) {
             $this->finishSkipped($run, 'Dataset ini sedang berjalan di proses lain.');
 

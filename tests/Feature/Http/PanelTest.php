@@ -34,6 +34,30 @@ class PanelTest extends SyncTestCase
         return User::factory()->create(['role' => UserRoleEnum::Viewer]);
     }
 
+    public function test_login_dibatasi_upaya(): void
+    {
+        /*
+         * Panel ini satu-satunya jalan ke kredensial koneksi dan token API.
+         * Tanpa throttle, brute force berjalan tanpa hambatan.
+         */
+        $admin = $this->admin();
+
+        for ($i = 1; $i <= 5; $i++) {
+            $this->post('/login', [
+                'email' => $admin->email,
+                'password' => 'salah-sekali',
+            ])->assertSessionHasErrors('email');
+        }
+
+        // Percobaan keenam, meski passwordnya benar, sudah ditolak.
+        $this->post('/login', [
+            'email' => $admin->email,
+            'password' => 'password',
+        ])->assertTooManyRequests();
+
+        $this->assertGuest();
+    }
+
     public function test_halaman_wajib_login(): void
     {
         $this->get('/')->assertRedirect(route('login'));

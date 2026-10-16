@@ -126,9 +126,13 @@ QUEUE_CONNECTION=database
 CACHE_STORE=database
 
 # Lock sync memakai cache store yang SHARED antar worker.
-# Untuk produksi multi-host, pakai redis.
-# CATATAN: nilai ini belum dibaca kode — lihat B1 di PR.md.
+# Untuk produksi multi-host WAJIB redis. Nilai ini sekarang benar-benar
+# dipakai oleh DatasetLock (sebelumnya hanya konfigurasi mati).
 SYNC_LOCK_STORE=database
+
+# TTL lock, dalam detik. Harus lebih besar dari timeout dataset supaya
+# lock tidak yatim ketika worker mati mendadak.
+SYNC_LOCK_TTL_SECONDS=900
 
 MAIL_MAILER=log
 ```
@@ -141,9 +145,15 @@ php artisan key:generate
 
 > **`SESSION_ENCRYPT`** sengaja `false` di sini supaya cocok dengan
 > `phpunit.xml` dan tidak membuat debugging lokal membingungkan. Untuk
-> produksi **wajib** `true` — token API sempat lewat session, dan tanpa
-> enkripsi nilainya tersimpan plaintext di tabel `sessions`. Ini temuan B3 di
-> `PR.md`.
+> produksi **wajib** `true`.
+>
+> Token API sudah dienkripsi dengan `APP_KEY` sebelum masuk session, jadi
+> session yang bocor tidak langsung memberi token. Tapi `SESSION_ENCRYPT=true`
+> tetap perlu: tanpa itu, session juga memuat `_token`, email, dan jejak
+> navigasi tanpa perlindungan apa pun.
+>
+> issuance token akan **ditolak** kalau `SESSION_ENCRYPT` tidak true — itu
+> gagal tertutup yang disengaja, bukan bug.
 
 ---
 

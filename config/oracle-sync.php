@@ -102,7 +102,20 @@ return [
     | tidak yatim bila worker mati mendadak.
     */
     'lock' => [
-        'ttl_seconds' => 900,
+        // TTL lock default. Harus lebih besar dari timeout dataset supaya lock
+        // tidak yatim bila worker mati mendadak.
+        'ttl_seconds' => (int) env('SYNC_LOCK_TTL_SECONDS', 900),
+
+        /*
+         * Cache store yang dipakai HANYA untuk lock sinkronisasi.
+         *
+         *.Store ini wajib shared antar worker. Kalau tidak, dua worker bisa
+         * menjalankan dataset yang sama bersamaan karena lock mereka tidak
+         * sama-sama terlihat.
+         *
+         * Beda dari CACHE_STORE: yang ini hanya untuk lock, jadi cache umum
+         * bisa tetap di database tanpa mengorbankan Sicherheit lock.
+         */
         'store' => env('SYNC_LOCK_STORE', 'database'),
     ],
 

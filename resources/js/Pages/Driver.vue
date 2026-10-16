@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Head, router, useForm, usePage } from '@inertiajs/vue3'
+import { Head, router, useForm } from '@inertiajs/vue3'
 import PageHeader from '../Components/PageHeader.vue'
 
 const props = defineProps({
@@ -9,9 +9,12 @@ const props = defineProps({
   defaults: { type: Object, required: true },
   tokens: { type: Array, default: () => [] },
   tokenableDatasets: { type: Array, default: () => [] },
+  /*
+   * Token yang baru terbit. Yang masuk ke session cuma ciphertext; plaintext
+   * didekripsi di server sebelum sampai ke sini, dan hanya untuk render ini.
+   */
+  issuedToken: { type: Object, default: null },
 })
-
-const page = usePage()
 
 const testing = ref(null)
 const revoking = ref(null)
@@ -23,15 +26,10 @@ const token = useForm({
   rate_limit_per_minute: 10, allowed_ips: '',
 })
 
-/*
- * Token yang baru dibuat datang lewat Inertia flash, yang berada di AKAR objek
- * page (`page.flash`), bukan di `page.props` seperti flash pesan biasa. Nilainya
- * hanya ada untuk satu render; setelah itu tidak ada salinannya di mana pun.
- */
-const revealed = computed(() => (tokenDismissed.value ? null : page.flash?.issuedToken ?? null))
+const revealed = computed(() => (tokenDismissed.value ? null : props.issuedToken ?? null))
 
 watch(
-  () => page.flash?.issuedToken?.uid,
+  () => props.issuedToken?.uid,
   () => { tokenDismissed.value = false },
 )
 

@@ -1201,17 +1201,20 @@ insiden. Setelah dicabut, permintaan berikutnya langsung `403`.
 
 | Lapis | Cara kerja |
 | --- | --- |
-| Pencocokan token | SHA-256 token dicocokkan lewat query terindeks `token_hash`; nilai asli tidak pernah dibandingkan, tidak pernah disimpan, dan tidak pernah di-log |
+| Pencocokan token | SHA-256 token dicocokkan lewat query terindeks `token_hash`; nilai asli tidak pernah dibandingkan dan tidak pernah di-log |
 | Wewenang | Token hanya berlaku untuk satu pasangan target + dataset |
 | Pembatas laju | Per token, dari kolom `rate_limit_per_minute` (bawaan 10/menit) |
 | Daftar IP | Opsional per token; kosong = semua IP diizinkan |
 | Pencabutan | Instan, tanpa menunggu worker |
 
-> **Wajib di produksi: `SESSION_ENCRYPT=true`.** Nilai asli token dikirim ke
-> browser lewat flash Inertia, jadi sempat melintasi session. Dengan session
-> driver `database` dan enkripsi nonaktif, nilai itu tersimpan apa adanya di
-> tabel `sessions` sampai sesi kadaluarsa — default 120 menit. Menyimpan
-> token sebagai hash saja belum cukup kalau session-nya tidak terenkripsi.
+> **Wajib di produksi: `SESSION_ENCRYPT=true`.** Nilai asli token dienkripsi
+> dengan `APP_KEY` sebelum masuk session, jadi session yang bocor tidak cukup
+> untuk mendapat token. Tapi tanpa `SESSION_ENCRYPT`, session juga memuat
+> `_token`, email, dan jejak navigasi tanpa perlindungan apa pun.
+>
+> Sebagai pengaman, penerbitan token di produksi akan **ditolak** kalau
+> `SESSION_ENCRYPT` tidak `true` — gagal tertutup yang disengaja, bukan bug.
+> Di luar produksi tetap dibolehkan supaya development tidak tersendat.
 
 Pembatas laju sengaja dijalankan **sebelum** middleware token. Tanpa token yang
 dikenal, kuota dihitung per IP supaya permintaan anonim ikut terlindungi dan tidak
@@ -1251,10 +1254,20 @@ APP_DEBUG=false
 | `SYNC_LOCK_STORE` | `redis` | Lock sinkronisasi harus terlihat oleh semua worker |
 | `SESSION_ENCRYPT` | `true` | Token API sempat lewat session; tanpa ini nilainya tersimpan apa adanya di tabel `sessions` |
 
-`SYNC_LOCK_STORE` menentukan cache store yang dipakai `Cache::lock()` untuk lock
-per dataset. Kalau store-nya **tidak shared** (misalnya `array`, atau `file` pada
-beberapa host terpisah), dua worker bisa menjalankan dataset yang sama bersamaan
-dan lock tidak akan menahan siapa pun. Untuk instalasi multi-host, Redis wajib.
+`SYNC_LOCK_STORE` menentukan cache store yang dipakai `Cache::store(...)` untuk
+lock per dataset. Kalau store-nya **tidak shared** (misalnya `array`, atau
+`file` pada beberapa host terpisah), dua worker bisa menjalankan dataset yang
+sama bersamaan dan lock tidak akan menahan siapa pun. Untuk instalasi
+multi-host, Redis wajib.
+
+Kalau store lock sama sekali tidak bisa dipakai, sinkronisasi **tetap berjalan**
+dengan peringatan di log — satu outage cache tidak boleh menghentikan seluruh
+pekerjaan. Yang membuat dataset di-skip hanya kondisi lain: lock benar-benar
+sudah dipegang proses lain.
+
+TTL lock diatur lewat `SYNC_LOCK_TTL_SECONDS` (bawaan 900 detik). Nilainya harus
+lebih besar dari `timeout_seconds` dataset supaya lock tidak yatim ketika worker
+mati mendadak.
 
 Jalankan migrasi dan cache:
 

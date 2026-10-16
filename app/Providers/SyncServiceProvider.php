@@ -9,12 +9,17 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Str;
 
 class SyncServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        $this->app->singleton(DatasetLock::class, fn ($app) => new DatasetLock(
+        /*
+         * Lock memakai store dari `SYNC_LOCK_STORE`, bukan cache store umum.
+         * TTL dibaca dari config tiap pemanggilan, jadi aman diubah di test.
+         */
+        $this->app->singleton(DatasetLock::class, fn () => new DatasetLock(
             (int) config('oracle-sync.lock.ttl_seconds', 900),
         ));
 
@@ -23,6 +28,8 @@ class SyncServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->registerLoginThrottle();
+
         /*
          * Pembatas laju API Tahap 2.
          *
@@ -43,6 +50,23 @@ class SyncServiceProvider extends ServiceProvider
                     'message' => 'Terlalu banyak permintaan. Coba lagi nanti.',
                     'retry_after_seconds' => $headers['Retry-After'] ?? null,
                 ], 429, $headers));
+        });
+    }
+
+    /**
+     * Pembatas percobaan login.
+     *
+     * Dihitung per kombinasi email + IP, bukan per IP saja, supaya satu
+     * jaringan korporat tidak saling mengunci padahal orangnya berbeda.
+     */
+    private function registerLoginThrottle(): void
+    {
+        RateLimiter::for('login', function (Request $request) {
+            $key = 'login:'.Str::transliterate(
+                Str::lower((string) $request->input('email', '')).'|'.$request->ip()
+            );
+
+            return Limit::perMinute(5)->by($key);
         });
     }
 }

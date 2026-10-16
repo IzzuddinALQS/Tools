@@ -6,6 +6,7 @@ use App\Models\ApiToken;
 use App\Models\Dataset;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -23,6 +24,10 @@ class ApiTokenController extends Controller
     {
         $data = $request->validate($this->rules());
 
+        // Dicek SEBELUM token dibuat, supaya penolakan tidak menyisakan token
+        // yang sudah tersimpan tapi tidak bisa ditampilkan.
+        $this->assertSessionIsEncryptedOutsideLocal();
+
         $dataset = Dataset::with('target')->findOrFail($data['dataset_id']);
 
         [$token, $plain] = ApiToken::issue([
@@ -36,13 +41,21 @@ class ApiTokenController extends Controller
         ]);
 
         /*
-         * flash() hanya tersedia untuk satu request berikutnya. Refresh
-         * halaman tidak akan memunculkan token lagi, dan token tidak pernah
-         * tersimpan di session yang bisa dibaca setelahnya.
+         * Nilai asli DIENKRIPSI sebelum masuk flash.
+         *
+         * Flash Inertia berarti lewat session. Dengan session driver `database`
+         * dan SESSION_ENCRYPT=false, payload session tersimpan apa adanya di
+         * tabel `sessions` — artinya token plaintext akan menetap di database
+         * sampai sesi kadaluarsa, dan hashing di api_tokens jadi tidak berarti.
+         *
+         * Dienkripsi dengan APP_KEY supaya session yang bocor tidak cukup
+         * untuk mendapat token. Dipakai Crypt, bukan flash biasa, karena
+         * nilainya lalu ditarik manual oleh DriverController agar bisa
+         * didekripsi di server sebelum dikirim ke browser.
          */
         Inertia::flash('issuedToken', [
             'uid' => $token->uid,
-            'plain' => $plain,
+            'plain' => Crypt::encryptString($plain),
             'app_name' => $token->app_name,
             'dataset' => $dataset->name,
             'target_uid' => $dataset->target?->uid,
@@ -50,6 +63,22 @@ class ApiTokenController extends Controller
         ]);
 
         return back()->with('success', 'Token untuk "'.$dataset->name.'" dibuat. Salin sekarang, nilai ini tidak akan ditampilkan lagi.');
+    }
+
+    /**
+     * Menolak menerbitkan token kalau session tidak terenkripsi di produksi.
+     *
+     * Gagal secara tertutup memang lebih baik daripada menyimpan rahasia yang
+     * tidak terenkripsi. Di luar produksi tetap dibolehkan supaya development
+     * dan test tidak tersendat.
+     */
+    private function assertSessionIsEncryptedOutsideLocal(): void
+    {
+        if (config('app.env') === 'production' && ! config('session.encrypt')) {
+            throw ValidationException::withMessages([
+                'token' => 'SESSION_ENCRYPT harus true di produksi sebelum token bisa diterbitkan.',
+            ]);
+        }
     }
 
     public function revoke(Request $request, ApiToken $token): RedirectResponse

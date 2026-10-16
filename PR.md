@@ -12,14 +12,14 @@ kriteria terima.
 
 | Kode | Temuan | Severity | Status |
 | --- | --- | --- | --- |
-| B1 | `SYNC_LOCK_STORE` adalah konfigurasi mati | Tinggi | Belum |
-| B2 | `DatasetLock::run()` melapor salah saat cache mati | Tinggi | Belum |
-| B3 | Token plaintext tersimpan di tabel `sessions` | Tinggi | Belum |
+| B1 | `SYNC_LOCK_STORE` adalah konfigurasi mati | Tinggi | **Selesai** |
+| B2 | `DatasetLock::run()` melapor salah saat cache mati | Tinggi | **Selesai** |
+| B3 | Token plaintext tersimpan di tabel `sessions` | Tinggi | **Selesai** |
 | B4 | `TrustProxies` tak dikonfigurasi, `allowed_ips` salah baca | Tinggi | Belum |
-| B5 | Login tanpa throttle | Sedang | Belum |
+| B5 | Login tanpa throttle | Sedang | **Selesai** |
 | B6 | Tidak ada cara ganti password | Sedang | Belum |
 | D1 | `.env.example` masih default Laravel | Sedang | Belum |
-| D2 | Klaim README soal penyimpanan token kurang tepat | Rendah | Sudah dikoreksi (teks) |
+| D2 | Klaim README soal penyimpanan token kurang tepat | Rendah | **Selesai** |
 | U1 | API tak bisa membedakan "sedang berjalan" | Rendah | Belum |
 | U2 | Dua lookup token per panggilan API | Rendah | Belum |
 | U3 | API balas 202 tanpa ada queue worker | Sedang | Belum |
@@ -28,6 +28,12 @@ kriteria terima.
 | U6 | Rantai sync → copy dari pemicu API belum diuji | Rendah | Belum |
 
 Urutan tackling yang disarankan: **B1 → B3 → B5 → B2 → B4**.
+Empat yang pertama sudah selesai. Tersisa: **B4, B6, D1, U1–U6**.
+
+> **Catatan B1.** Nilai `SYNC_LOCK_STORE` kini benar-benar dibaca, tapi
+> `SYNC_LOCK_STORE=redis` di `.env.example` masih belum ditulis karena berkas
+> itu sendiri masih default Laravel (lihat D1). Sudah ditulis lengkap di
+> `SETUP-LAPTOP.md`.
 
 ---
 
@@ -35,7 +41,7 @@ Urutan tackling yang disarankan: **B1 → B3 → B5 → B2 → B4**.
 
 ### B1 — `SYNC_LOCK_STORE` adalah konfigurasi mati
 
-**Severity: Tinggi**
+**Severity: Tinggi** · **Status: SELESAI**
 
 #### Gejala
 
@@ -94,16 +100,40 @@ Sekalian jadikan `ttl_seconds` bisa dikonfigurasi lewat environment.
 
 #### Kriteria terima
 
-- `SYNC_LOCK_STORE=redis` benar-benar membuat `Cache::store('redis')` yang dipakai
+- [x] `SYNC_LOCK_STORE=redis` benar-benar membuat `Cache::store('redis')` yang dipakai
   untuk lock, terbukti lewat test.
-- `php artisan config:show oracle-sync` menampilkan nilai yang dipakai.
-- Ada test yang gagal kalau store yang dikonfigurasi tidak kompatibel dengan lock.
+- [x] `php artisan config:show oracle-sync` menampilkan nilai yang dipakai.
+- [x] Ada test yang gagal kalau store yang dikonfigurasi tidak kompatibel dengan lock.
+
+#### Yang dikerjakan
+
+`DatasetLock` kini menyimpan nama store dari config dan memakainya secara
+eksplisit:
+
+```php
+$resolved = Cache::store($this->store);
+
+if (! $resolved->getStore() instanceof LockProvider) {
+    throw new LockUnavailable('store "'.$store.'" tidak mendukung lock');
+}
+
+return $resolved->lock('sync:'.$key, $this->ttl());
+```
+
+`ttl_seconds` juga bisa dikonfigurasi lewat `SYNC_LOCK_TTL_SECONDS`, dan dibaca
+per pemanggilan (bukan di constructor) supaya test bisa mengubahnya tanpa
+membuat ulang objek.
+
+Test: `test_lock_memakai_store_yang_dikonfigurasi` membuktikan lock benar-benar
+jatuh ke store yang dikonfigurasi — ia mengambil lock itu lagi dari store
+`array` dan berhasil, yang mustahil kalau lock sebenarnya ada di store
+bawaan.
 
 ---
 
 ### B2 — `DatasetLock::run()` melapor salah saat cache mati
 
-**Severity: Tinggi**
+**Severity: Tinggi** · **Status: SELESAI**
 
 #### Gejala
 
@@ -166,16 +196,52 @@ exception, lalu beri pesan yang jujur di `SyncRunner`:
 
 #### Kriteria terima
 
-- Test dengan cache store yang sengaja dirusak menghasilkan `status = success`
+- [x] Test dengan cache store yang sengaja dirusak menghasilkan `status = success`
   (bukan `skipped`), dan log memuat peringatan.
-- Test dengan lock yang benar-benar dipegang proses lain tetap menghasilkan
+- [x] Test dengan lock yang benar-benar dipegang proses lain tetap menghasilkan
   `status = skipped`.
+
+#### Yang dikerjakan
+
+Dua kondisi dipisah dengan tipe berbeda. `acquire()` kini melempar
+`App\Services\Guard\LockUnavailable` (file tersendiri, demi PSR-4), bukan
+mengembalikan `null`:
+
+```php
+public function run(string $key, callable $callback): mixed
+{
+    try {
+        $lock = $this->acquire($key);
+    } catch (LockUnavailable $exception) {
+        Log::warning('Lock sinkronisasi tidak bisa diambil; lanjut tanpa lock.', [
+            'key' => $key,
+            'store' => $this->store,
+            'reason' => $exception->getMessage(),
+        ]);
+
+        return $callback();
+    }
+
+    if (! $lock->get()) {
+        return null;   // hanya ini yang berarti "sedang berjalan"
+    }
+
+    try {
+        return $callback();
+    } finally {
+        $this->release($lock);
+    }
+}
+```
+
+`null` sekarang secara eksklusif berarti "lock dipegang proses lain".
+`SyncRunner` tidak perlu diubah karena maknanya sudah benar.
 
 ---
 
 ### B3 — Token plaintext tersimpan di tabel `sessions`
 
-**Severity: Tinggi**
+**Severity: Tinggi** · **Status: SELESAI**
 
 #### Gejala
 
@@ -224,9 +290,29 @@ Dua lapis, keduanya sebaiknya dikerjakan:
 
 #### Kriteria terima
 
-- Test end-to-end yang memaksa `session.driver=database` +
+- [x] Test end-to-end yang memaksa `session.driver=database` +
   `session.encrypt=false` membuktikan kondisi sebelum perbaikan, lalu
   membuktikannya hilang sesudah perbaikan.
+
+#### Yang dikerjakan
+
+**Satu: nilai token dienkripsi sebelum masuk session.** `Crypt::encryptString()`
+dengan `APP_KEY`, jadi session yang bocor tidak cukup untuk mendapat token.
+
+**Dua: flash-nya ditarik manual oleh `DriverController::index()`**, bukan
+otomatis oleh Inertia, supaya dekripsi bisa terjadi di server sebelum plaintext
+pergi ke browser. `Inertia::pullFlashed()` bersifat sekali pakai, jadi nilai
+aslinya tetap hilang dari sisi server setelah render.
+
+**Tiga: gagal tertutup di produksi.** `ApiTokenController` menolak menerbitkan
+token kalau `app.env=production` dan `session.encrypt=false` — dicek **sebelum**
+token dibuat, supaya penolakan tidak menyisakan token tersimpan yang tidak bisa
+ditampilkan. Di luar produksi tetap dibolehkan supaya development tidak
+tersendat.
+
+Test `test_token_tidak_ada_plaintext_di_tabel_sessions` memaksa session ke driver
+`database` dengan enkripsi mati, lalu membaca isi tabel `sessions` secara
+mentah dan memastikan nilai asli tidak ada di sana.
 
 ---
 
@@ -282,7 +368,7 @@ mempertimbangkan deployment di belakang proxy.
 
 ### B5 — Login tanpa throttle
 
-**Severity: Sedang**
+**Severity: Sedang** · **Status: SELESAI**
 
 #### Gejala
 
@@ -313,8 +399,32 @@ setelah lookup token).
 
 #### Kriteria terima
 
-- Test: percobaan ke-11 dalam semenit ditolak dengan 429.
-- Pesan error tidak membocorkan apakah email terdaftar.
+- [x] Test: percobaan ke-6 dalam semenit ditolak dengan 429.
+- [x] Pesan error tidak membocorkan apakah email terdaftar.
+
+#### Yang dikerjakan
+
+```php
+Route::post('/login', [LoginController::class, 'store'])
+    ->middleware(['guest', 'throttle:login'])
+    ->name('login.store');
+```
+
+Limiter `login` didaftarkan di `SyncServiceProvider` dengan kunci per
+**kombinasi email + IP**, bukan per IP saja:
+
+```php
+RateLimiter::for('login', function (Request $request) {
+    $key = 'login:'.Str::transliterate(
+        Str::lower((string) $request->input('email', '')).'|'.$request->ip()
+    );
+
+    return Limit::perMinute(5)->by($key);
+});
+```
+
+Per kombinasi, bukan per IP, supaya satu jaringan korporat tidak saling
+mengunci padahal orangnya berbeda.
 
 ---
 

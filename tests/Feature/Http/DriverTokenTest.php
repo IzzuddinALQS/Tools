@@ -6,7 +6,7 @@ use App\Enums\UserRoleEnum;
 use App\Models\ApiToken;
 use App\Models\Dataset;
 use App\Models\User;
-use Illuminate\Testing\TestResponse;
+use Illuminate\Support\Facades\DB;
 use Tests\Feature\SyncTestCase;
 use Tests\Support\InteractsWithDatabases;
 
@@ -80,13 +80,15 @@ class DriverTokenTest extends SyncTestCase
 
         $first->assertOk()->assertInertia(fn ($page) => $page
             ->component('Driver')
-            ->hasFlash('issuedToken.dataset', 'po-headers')
-            ->hasFlash('issuedToken.dataset_uid', $dataset->uid)
-            ->hasFlash('issuedToken.target_uid', $dataset->target->uid)
-            ->hasFlash('issuedToken.app_name', 'armors')
+            ->where('issuedToken.dataset', 'po-headers')
+            ->where('issuedToken.dataset_uid', $dataset->uid)
+            ->where('issuedToken.target_uid', $dataset->target->uid)
+            ->where('issuedToken.app_name', 'armors')
+            ->has('issuedToken.plain')
+            ->has('issuedToken.uid')
         );
 
-        $plain = $this->grabFlashValue($first, 'issuedToken', 'plain');
+        $plain = $first->viewData('page')['props']['issuedToken']['plain'] ?? null;
 
         $this->assertNotNull($plain, 'Nilai asli harus tersedia pada render pertama.');
         $this->assertSame(64, strlen($plain));
@@ -95,7 +97,7 @@ class DriverTokenTest extends SyncTestCase
         $this->actingAs($admin)
             ->get('/drivers')
             ->assertOk()
-            ->assertInertia(fn ($page) => $page->missingFlash('issuedToken'));
+            ->assertInertia(fn ($page) => $page->where('issuedToken', null));
 
         $second = $this->actingAs($admin)->get('/drivers')->getContent();
 
@@ -106,17 +108,66 @@ class DriverTokenTest extends SyncTestCase
         $this->assertStringNotContainsString($plain, $dashboard->getContent());
     }
 
-    /**
-     * Ambil satu nilai dari flash Inertia.
-     *
-     * Flash berada di akar objek page, di luar `props`, jadi harus dibaca dari
-     * situ — bukan dari `props` seperti flash pesan biasa.
-     */
-    private function grabFlashValue(TestResponse $response, string $flashKey, string $field): ?string
+    public function test_token_tidak_ada_plaintext_di_tabel_sessions(): void
     {
-        $page = $response->viewData('page');
+        /*
+     *ession driver database tanpa enkripsi akan menyimpan isi flash apa
+     * adanya. Karena itu nilai token dienkripsi dengan APP_KEY sebelum
+     * masuk session.
+     */
+        putenv('SESSION_DRIVER=database');
+        $_ENV['SESSION_DRIVER'] = 'database';
+        $_SERVER['SESSION_DRIVER'] = 'database';
+        config(['session.driver' => 'database', 'session.encrypt' => false]);
+        session()->setDefaultDriver('database');
+        app()->forgetInstance('session');
 
-        return $page['flash'][$flashKey][$field] ?? null;
+        $admin = $this->admin();
+        $dataset = $this->dataset();
+
+        $this->actingAs($admin)->post('/drivers/tokens', [
+            'name' => 'a', 'app_name' => 'armors', 'dataset_id' => $dataset->id,
+            'rate_limit_per_minute' => 10,
+        ]);
+
+        $token = ApiToken::query()->firstOrFail();
+
+        // Nilai asli, seperti yang akan sampai ke browser.
+        $rendered = $this->actingAs($admin)->get('/drivers');
+        $plain = $rendered->viewData('page')['props']['issuedToken']['plain'] ?? null;
+
+        $this->assertNotNull($plain);
+
+        $stored = base64_decode((string) DB::table('sessions')->orderByDesc('last_activity')->value('payload'));
+
+        $this->assertStringContainsString('issuedToken', $stored, 'Flash memang lewat session.');
+        $this->assertStringNotContainsString(
+            $plain,
+            $stored,
+            'Nilai asli token tidak boleh tersimpan di tabel sessions.',
+        );
+        $this->assertStringNotContainsString(
+            $token->token_hash,
+            $stored,
+            'Hash token juga tidak perlu ada di session.',
+        );
+    }
+
+    public function test_token_ditolak_saat_produksi_tanpa_session_encrypt(): void
+    {
+        config(['app.env' => 'production', 'session.encrypt' => false]);
+
+        $admin = $this->admin();
+        $dataset = $this->dataset();
+
+        $this->actingAs($admin)
+            ->post('/drivers/tokens', [
+                'name' => 'a', 'app_name' => 'armors', 'dataset_id' => $dataset->id,
+                'rate_limit_per_minute' => 10,
+            ])
+            ->assertSessionHasErrors('token');
+
+        $this->assertSame(0, ApiToken::count());
     }
 
     public function test_hash_token_tidak_pernah_dikirim_ke_browser(): void
