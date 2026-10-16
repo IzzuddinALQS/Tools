@@ -4,7 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Enums\DriverEnum;
 use App\Enums\TargetKindEnum;
+use App\Models\ApiToken;
 use App\Models\Connection;
+use App\Models\Dataset;
 use App\Models\Target;
 use App\Services\Pg\PgConnectionResolver;
 use App\Services\Source\SourceReaderFactory;
@@ -87,6 +89,41 @@ class DriverController extends Controller
                     'label' => $k->label(),
                 ], TargetKindEnum::cases()),
             ],
+
+            // Token API Tahap 2. Hash tidak pernah dikirim ke browser.
+            'tokens' => ApiToken::query()
+                ->with(['dataset:id,name,uid', 'target:id,name,uid'])
+                ->orderByDesc('id')
+                ->limit(50)
+                ->get()
+                ->map(fn (ApiToken $token) => [
+                    'id' => $token->id,
+                    'uid' => $token->uid,
+                    'name' => $token->name,
+                    'app_name' => $token->app_name,
+                    'dataset' => $token->dataset?->name,
+                    'dataset_uid' => $token->dataset?->uid,
+                    'target_uid' => $token->target?->uid,
+                    'rate_limit_per_minute' => $token->rate_limit_per_minute,
+                    'allowed_ips' => $token->allowed_ips,
+                    'last_used_at' => $token->last_used_at?->toDateTimeString(),
+                    'revoked_at' => $token->revoked_at?->toDateTimeString(),
+                    'revoked_reason' => $token->revoked_reason,
+                    'created_at' => $token->created_at?->toDateTimeString(),
+                    'is_active' => $token->isActive(),
+                ]),
+
+            'tokenableDatasets' => Dataset::query()
+                ->with('target:id,name,uid')
+                ->orderBy('name')
+                ->get()
+                ->map(fn (Dataset $dataset) => [
+                    'id' => $dataset->id,
+                    'name' => $dataset->name,
+                    'target' => $dataset->target?->name,
+                    'target_uid' => $dataset->target?->uid,
+                    'uid' => $dataset->uid,
+                ]),
         ]);
     }
 

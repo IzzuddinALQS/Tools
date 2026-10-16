@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ApiTokenController;
 use App\Http\Controllers\CopyController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DatasetController;
@@ -56,5 +57,9 @@ Route::middleware('auth')->group(function (): void {
         Route::put('/drivers/targets/{target}', [DriverController::class, 'updateTarget'])->name('drivers.targets.update');
         Route::delete('/drivers/targets/{target}', [DriverController::class, 'destroyTarget'])->name('drivers.targets.destroy');
         Route::post('/drivers/targets/{target}/test', [DriverController::class, 'testTarget'])->name('drivers.targets.test');
+
+        // Token API Tahap 2, dikelola dari halaman Driver yang sama.
+        Route::post('/drivers/tokens', [ApiTokenController::class, 'store'])->name('drivers.tokens.store');
+        Route::post('/drivers/tokens/{token}/revoke', [ApiTokenController::class, 'revoke'])->name('drivers.tokens.revoke');
     });
 });

@@ -1,15 +1,39 @@
 <script setup>
-import { ref } from 'vue'
-import { Head, router, useForm } from '@inertiajs/vue3'
+import { computed, ref, watch } from 'vue'
+import { Head, router, useForm, usePage } from '@inertiajs/vue3'
 import PageHeader from '../Components/PageHeader.vue'
 
 const props = defineProps({
   connections: { type: Array, default: () => [] },
   targets: { type: Array, default: () => [] },
   defaults: { type: Object, required: true },
+  tokens: { type: Array, default: () => [] },
+  tokenableDatasets: { type: Array, default: () => [] },
 })
 
+const page = usePage()
+
 const testing = ref(null)
+const revoking = ref(null)
+const copied = ref(null)
+const tokenDismissed = ref(false)
+
+const token = useForm({
+  name: '', app_name: '', dataset_id: null,
+  rate_limit_per_minute: 10, allowed_ips: '',
+})
+
+/*
+ * Token yang baru dibuat datang lewat Inertia flash, yang berada di AKAR objek
+ * page (`page.flash`), bukan di `page.props` seperti flash pesan biasa. Nilainya
+ * hanya ada untuk satu render; setelah itu tidak ada salinannya di mana pun.
+ */
+const revealed = computed(() => (tokenDismissed.value ? null : page.flash?.issuedToken ?? null))
+
+watch(
+  () => page.flash?.issuedToken?.uid,
+  () => { tokenDismissed.value = false },
+)
 
 const connection = useForm({
   name: '', description: '', driver: props.defaults.driver,
@@ -52,6 +76,34 @@ function removeTarget(item) {
   if (window.confirm(`Hapus target "${item.name}"?`)) {
     router.delete(`/drivers/targets/${item.id}`, { preserveScroll: true })
   }
+}
+
+function issueToken() {
+  token.post('/drivers/tokens', { preserveScroll: true })
+}
+
+function revokeToken(item) {
+  if (!window.confirm(
+    `Cabut token untuk "${item.app_name}"?\n\n`
+    + `Aplikasi akan langsung mendapat 403 pada permintaan berikutnya. `
+    + `Token tidak bisa diaktifkan kembali — buat token baru.`,
+  )) {
+    return
+  }
+
+  revoking.value = item.uid
+
+  router.post(`/drivers/tokens/${item.id}/revoke`, { reason: 'Dicabut dari halaman Driver' }, {
+    preserveScroll: true,
+    onFinish: () => { revoking.value = null },
+  })
+}
+
+function copy(text, key) {
+  navigator.clipboard?.writeText(text)
+  copied.value = key
+
+  window.setTimeout(() => { copied.value = null }, 2000)
 }
 
 const errorsOf = (form) => Object.entries(form.errors).flatMap(([key, messages]) =>
@@ -299,6 +351,164 @@ const errorsOf = (form) => Object.entries(form.errors).flatMap(([key, messages])
         <div class="mt-4 flex items-center gap-3 border-t border-ink-100 pt-4">
           <button type="submit" class="btn-primary" :disabled="target.processing">Tambah target</button>
           <span class="text-xs text-ink-400">Hanya boleh ada satu PostgreSQL A.</span>
+        </div>
+      </form>
+    </section>
+
+    <!-- ================= Token API (Tahap 2) ================= -->
+    <section class="space-y-3">
+      <h2 class="eyebrow">Token API (Tahap 2)</h2>
+
+      <div class="flex gap-3 rounded-lg border border-brand-200 bg-brand-50 px-4 py-3 text-sm">
+        <span class="mt-px flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-200 text-[11px] font-bold text-brand-800">i</span>
+        <p class="leading-relaxed text-brand-800">
+          Token memberi aplikasi luar hak <strong>memicu</strong> sinkronisasi satu dataset yang sudah
+          terdaftar. Token tidak bisa menulis SQL, tidak bisa membaca Oracle, dan tidak berlaku
+          untuk dataset lain.
+        </p>
+      </div>
+
+      <!-- Token yang baru dibuat: nilai asli hanya tampil sekali -->
+      <div v-if="revealed" class="rounded-lg border-2 border-emerald-300 bg-emerald-50 p-5">
+        <div class="flex items-start justify-between gap-4">
+          <div class="min-w-0">
+            <p class="text-sm font-semibold text-emerald-900">
+              Token untuk {{ revealed.app_name }} sudah dibuat
+            </p>
+            <p class="mt-1 text-xs leading-relaxed text-emerald-800">
+              Nilai ini hanya ditampilkan sekali. Setelah halaman ini ditutup atau dimuat ulang,
+              token tidak bisa dilihat lagi — hanya bisa dicabut dan dibuat ulang.
+            </p>
+          </div>
+          <button type="button" class="btn-ghost btn-xs shrink-0" @click="tokenDismissed = true">Tutup</button>
+        </div>
+
+        <div class="mt-4 space-y-3">
+          <div>
+            <span class="eyebrow">Token</span>
+            <div class="mt-1.5 flex items-center gap-2">
+              <code class="mono flex-1 overflow-x-auto rounded-lg border border-emerald-300 bg-white px-3 py-2 text-[12.5px] text-ink-900">{{ revealed.plain }}</code>
+              <button type="button" class="btn-secondary btn-xs shrink-0" @click="copy(revealed.plain, 'plain')">
+                {{ copied === 'plain' ? 'Tersalin' : 'Salin' }}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <span class="eyebrow">Panggilan dari aplikasi</span>
+            <div class="mt-1.5 flex items-center gap-2">
+              <code class="mono flex-1 overflow-x-auto rounded-lg border border-emerald-300 bg-white px-3 py-2 text-[12.5px] text-ink-900">POST /api/v1/targets/{{ revealed.target_uid }}/datasets/{{ revealed.dataset_uid }}/refresh</code>
+              <button type="button" class="btn-secondary btn-xs shrink-0" @click="copy(`/api/v1/targets/${revealed.target_uid}/datasets/${revealed.dataset_uid}/refresh`, 'url')">
+                {{ copied === 'url' ? 'Tersalin' : 'Salin' }}
+              </button>
+            </div>
+            <p class="hint mt-1">Header: <code class="mono">Authorization: Bearer &lt;token&gt;</code></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Daftar token -->
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Aplikasi</th>
+              <th>Label</th>
+              <th>Dataset</th>
+              <th>Batas laju</th>
+              <th>Terakhir dipakai</th>
+              <th>Status</th>
+              <th class="text-right">Aksi</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="tokens.length === 0">
+              <td colspan="7" class="py-8 text-center text-ink-400">Belum ada token API.</td>
+            </tr>
+            <tr v-for="item in tokens" :key="item.id" :class="!item.is_active ? 'opacity-55' : ''">
+              <td class="font-medium text-ink-900">
+                {{ item.app_name }}
+                <p class="mono text-[11px] font-normal text-ink-400">{{ item.uid }}</p>
+              </td>
+              <td class="text-xs text-ink-600">{{ item.name }}</td>
+              <td class="text-xs">
+                {{ item.dataset || '—' }}
+                <span v-if="item.allowed_ips?.length" class="block text-ink-400">
+                  dibatasi IP: {{ item.allowed_ips.join(', ') }}
+                </span>
+              </td>
+              <td class="text-xs tabular-nums text-ink-600">{{ item.rate_limit_per_minute }}/mnt</td>
+              <td class="whitespace-nowrap text-xs text-ink-500">{{ item.last_used_at || '—' }}</td>
+              <td>
+                <span v-if="item.is_active" class="badge-success">Aktif</span>
+                <span v-else class="badge-neutral" :title="item.revoked_reason">Dicabut</span>
+              </td>
+              <td class="text-right whitespace-nowrap">
+                <button
+                  v-if="item.is_active"
+                  type="button"
+                  class="btn-danger btn-xs"
+                  :disabled="revoking === item.uid"
+                  @click="revokeToken(item)"
+                >
+                  {{ revoking === item.uid ? '…' : 'Cabut' }}
+                </button>
+                <span v-else class="text-xs text-ink-300">—</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Formulir token baru -->
+      <form class="surface p-5" @submit.prevent="issueToken">
+        <h3 class="text-sm font-semibold text-ink-900">Terbitkan token baru</h3>
+
+        <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <label class="block">
+            <span class="eyebrow">Nama aplikasi</span>
+            <input v-model="token.app_name" required class="input-sm mono mt-1.5" placeholder="armors">
+            <span class="hint"> huruf kecil, angka, tanda hubung.</span>
+            <span v-if="token.errors.app_name" class="hint text-red-600">{{ token.errors.app_name }}</span>
+          </label>
+
+          <label class="block">
+            <span class="eyebrow">Label token</span>
+            <input v-model="token.name" required class="input-sm mt-1.5" placeholder="laptop-budi">
+            <span class="hint">Boleh diisi "laptop", "server produksi".</span>
+          </label>
+
+          <label class="block lg:col-span-2">
+            <span class="eyebrow">Dataset yang boleh dicicu</span>
+            <select v-model="token.dataset_id" required class="input-sm mt-1.5">
+              <option :value="null" disabled>Pilih dataset…</option>
+              <option v-for="item in tokenableDatasets" :key="item.id" :value="item.id">
+                {{ item.name }} — {{ item.target }}
+              </option>
+            </select>
+            <span v-if="token.errors.dataset_id" class="hint text-red-600">{{ token.errors.dataset_id }}</span>
+          </label>
+
+          <label class="block">
+            <span class="eyebrow">Batas laju / menit</span>
+            <input v-model.number="token.rate_limit_per_minute" type="number" min="1" max="600" class="input-sm mt-1.5">
+          </label>
+
+          <label class="block lg:col-span-3">
+            <span class="eyebrow">Batasi IP (opsional)</span>
+            <input v-model="token.allowed_ips" class="input-sm mono mt-1.5" placeholder="10.0.0.5, 10.0.0.6">
+            <span class="hint">Pisahkan dengan koma. Kosongkan untuk mengizinkan semua IP.</span>
+            <span v-if="token.errors.allowed_ips" class="hint text-red-600">{{ token.errors.allowed_ips }}</span>
+          </label>
+        </div>
+
+        <div class="mt-4 flex items-center gap-3 border-t border-ink-100 pt-4">
+          <button type="submit" class="btn-primary" :disabled="token.processing">
+            {{ token.processing ? 'Menerbitkan…' : 'Terbitkan token' }}
+          </button>
+          <span class="text-xs text-ink-400">
+            Token disimpan sebagai hash. Nilai aslinya hanya tampil sekali setelah dibuat.
+          </span>
         </div>
       </form>
     </section>

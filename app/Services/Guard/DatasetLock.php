@@ -11,6 +11,15 @@ use Throwable;
  *
  * Lock diambil dari cache store yang SHARED antar worker. Di produksi
  * multi-host, pastikan `SYNC_LOCK_STORE` memakai Redis.
+ *
+ * CATATAN: tidak ada method "apakah sedang terkunci" di sini, dan itu disengaja.
+ * Satu-satunya cara memeriksa lock tanpa mengambilnya adalah dengan
+ * memanggil get() — yang justru MENGAMBIL lock itu dan menahannya sampai TTL.
+ * Pemeriksa seperti itu akan selalu menjawab "terkunci" pada panggilan pertama
+ * sekaligus mengunci dataset yang sebenarnya sedang bebas.
+ *
+ * Kalau perlu tahu apakah dataset sedang berjalan, baca tabel `runs`
+ * (status = running), bukan cache lock.
  */
 class DatasetLock
 {
@@ -59,15 +68,6 @@ class DatasetLock
             $lock->release();
         } catch (Throwable) {
             // Lock sudah kedaluwarsa atau store tidak bisa dijangkau.
-        }
-    }
-
-    public function isLocked(string $key): bool
-    {
-        try {
-            return Cache::lock('sync:'.$key, $this->ttlSeconds)->get();
-        } catch (Throwable) {
-            return false;
         }
     }
 
