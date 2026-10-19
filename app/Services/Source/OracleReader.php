@@ -34,6 +34,8 @@ class OracleReader implements SourceReader
 
     private bool $sessionApplied = false;
 
+    private ?string $defaultSchema = null;
+
     public function __construct(
         private readonly ConnectionModel $connection,
         private readonly SelectGuard $guard,
@@ -128,8 +130,38 @@ class OracleReader implements SourceReader
         }
     }
 
+    /**
+     * Schema aktif sesi Oracle. Biasanya sama dengan username, tapi bisa
+     * berbeda bila DBA memasang logon trigger ALTER SESSION SET CURRENT_SCHEMA.
+     */
+    public function defaultSchema(): string
+    {
+        if ($this->defaultSchema !== null) {
+            return $this->defaultSchema;
+        }
+
+        try {
+            $statement = $this->pdo()->prepare("SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') FROM DUAL");
+            $statement->execute();
+            $schema = $statement->fetchColumn();
+            $statement->closeCursor();
+        } catch (SourceUnavailableException $exception) {
+            throw $exception;
+        } catch (Throwable) {
+            $schema = null;
+        }
+
+        if (! is_string($schema) || $schema === '') {
+            // Cadangan: tanpa trigger, schema default = nama user.
+            $schema = (string) $this->connection->username;
+        }
+
+        return $this->defaultSchema = strtoupper($schema);
+    }
+
     public function close(): void
     {
+        $this->defaultSchema = null;
         // ext-oci8 menutup koneksi saat objek PDO dihancurkan; tidak ada
         // handle yang harus ditutup manual.
         $this->pdo = null;
@@ -315,12 +347,12 @@ class OracleReader implements SourceReader
         $read = 0;
 
         if ($pendingRow !== null) {
-            yield $pendingRow;
+            yield $this->materializeLobs($pendingRow);
             $read++;
         }
 
         while ($read < $maxRows && ($row = $statement->fetch(PDO::FETCH_ASSOC)) !== false) {
-            yield $row;
+            yield $this->materializeLobs($row);
             $read++;
         }
 
@@ -329,6 +361,27 @@ class OracleReader implements SourceReader
         } catch (Throwable) {
             // Statement sudah selesai atau koneksi diputus; tidak masalah.
         }
+    }
+
+    /**
+     * CLOB/BLOB bisa datang sebagai stream resource atau objek OCI-Lob,
+     * tergantung versi oci8. Penulis tabel dan verifikasi butuh nilai biasa,
+     * jadi LOB dibaca penuh di sini — satu-satunya tempat yang tahu soal oci8.
+     *
+     * @param  array<string,mixed>  $row
+     * @return array<string,mixed>
+     */
+    private function materializeLobs(array $row): array
+    {
+        foreach ($row as $key => $value) {
+            if (is_resource($value)) {
+                $row[$key] = stream_get_contents($value);
+            } elseif (is_object($value) && method_exists($value, 'load')) {
+                $row[$key] = $value->load();
+            }
+        }
+
+        return $row;
     }
 
     /**

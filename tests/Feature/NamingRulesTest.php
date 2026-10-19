@@ -24,6 +24,20 @@ class NamingRulesTest extends SyncTestCase
         $this->dataset();
     }
 
+    public function test_query_tanpa_schema_memakai_schema_bawaan_sumber(): void
+    {
+        // Dulu schema bawaan ditulis mati 'APPUSER', sehingga di Oracle asli
+        // `FROM PO_HEADERS` mencari APPUSER.PO_HEADERS dan gagal.
+        $preview = app(PreviewService::class)->preview(
+            'SELECT * FROM PO_HEADERS',
+            $this->readerFor($this->mockConnection()),
+        );
+
+        $this->assertTrue($preview['identity_mode']);
+        $this->assertSame('APPS', $preview['schema']);
+        $this->assertSame('PO_HEADERS', $preview['table']);
+    }
+
     public function test_query_join_wajib_memberi_nama_tujuan_sendiri(): void
     {
         $connection = $this->mockConnection();

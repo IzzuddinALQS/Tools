@@ -149,6 +149,11 @@ class MockOracleReader implements SourceReader
         return $this->catalog ??= FixtureCatalog::load($this->connection->fixtureSet());
     }
 
+    public function defaultSchema(): string
+    {
+        return $this->catalog()->defaultSchema();
+    }
+
     /**
      * @return array<int,string>
      */

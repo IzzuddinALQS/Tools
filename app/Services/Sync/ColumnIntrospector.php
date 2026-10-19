@@ -230,19 +230,7 @@ class ColumnIntrospector
             return [strtoupper($parts[0]), strtoupper($parts[1])];
         }
 
-        return [strtoupper($this->defaultOwner($reader)), strtoupper($parts[0])];
-    }
-
-    /**
-     * Schema default milik user Oracle saat tidak ditulis di query.
-     */
-    private function defaultOwner(SourceReader $reader): string
-    {
-        if ($reader instanceof \App\Services\Source\MockOracleReader) {
-            return $reader->catalog()->defaultSchema();
-        }
-
-        return 'APPUSER';
+        return [strtoupper($reader->defaultSchema()), strtoupper($parts[0])];
     }
 
     /**

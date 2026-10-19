@@ -58,5 +58,13 @@ interface SourceReader
      */
     public function tableColumns(string $owner, string $table): ?array;
 
+    /**
+     * Schema yang dipakai Oracle saat query tidak menyebut schema
+     * (mis. `FROM PO_HEADERS`). Huruf besar.
+     *
+     * @throws SourceUnavailableException
+     */
+    public function defaultSchema(): string;
+
     public function close(): void;
 }
