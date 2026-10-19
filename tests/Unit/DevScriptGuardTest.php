@@ -24,7 +24,7 @@ class DevScriptGuardTest extends TestCase
 
     public function test_buat_akun_menolak_di_produksi(): void
     {
-        $source = $this->runScript('buat-akun.php');
+        $source = $this->runScript('scripts/buat-akun.php');
 
         $this->assertStringContainsString(
             "app()->environment('production')",
@@ -42,7 +42,7 @@ class DevScriptGuardTest extends TestCase
 
     public function test_isi_data_contoh_menolak_di_produksi(): void
     {
-        $source = $this->runScript('isi-data-contoh.php');
+        $source = $this->runScript('scripts/isi-data-contoh.php');
 
         $this->assertStringContainsString(
             "app()->environment('production')",
@@ -59,7 +59,7 @@ class DevScriptGuardTest extends TestCase
 
     public function test_keduanya_memakai_pola_penjaga_yang_sama(): void
     {
-        foreach (['buat-akun.php', 'isi-data-contoh.php'] as $script) {
+        foreach (['scripts/buat-akun.php', 'scripts/isi-data-contoh.php'] as $script) {
             $source = $this->runScript($script);
 
             $this->assertMatchesRegularExpression(

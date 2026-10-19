@@ -171,6 +171,17 @@ trait InteractsWithDatabases
     protected function resetTargets(): void
     {
         foreach ($this->testDatabases() as $database) {
+            // Pengaman: langkah ini men-DROP schema. Jangan pernah jalankan
+            // pada database pengembangan/produksi (dulu test memakai ods_pg_a
+            // yang sama dengan aplikasi, sehingga data dev ikut terhapus).
+            if (! str_contains($database, 'test')) {
+                throw new \RuntimeException(
+                    "Menolak membersihkan database \"{$database}\": nama database test wajib mengandung kata \"test\". "
+                    .'Atur TEST_PG_*_DATABASE di phpunit.xml.'
+                );
+            }
+
+
             try {
                 $connection = $this->connectionForDatabase($database);
                 $connection->statement('DROP SCHEMA IF EXISTS "APPS" CASCADE');

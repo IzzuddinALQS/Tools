@@ -28,7 +28,7 @@
         <env name="DB_CONNECTION" value="pgsql"/>
         <env name="DB_HOST" value="127.0.0.1"/>
         <env name="DB_PORT" value="5433"/>
-        <env name="DB_DATABASE" value="ods_meta"/>
+        <env name="DB_DATABASE" value="ods_test_meta"/>
         <env name="DB_USERNAME" value="postgres"/>
         <env name="DB_PASSWORD" value="postgres"/>
 
@@ -37,9 +37,9 @@
         <env name="TEST_PG_PORT" value="5433"/>
         <env name="TEST_PG_USERNAME" value="postgres"/>
         <env name="TEST_PG_PASSWORD" value="postgres"/>
-        <env name="TEST_PG_A_DATABASE" value="ods_pg_a"/>
-        <env name="TEST_PG_B_DATABASE" value="ods_pg_b_armors"/>
-        <env name="TEST_PG_B2_DATABASE" value="ods_pg_b_reporting"/>
+        <env name="TEST_PG_A_DATABASE" value="ods_test_pg_a"/>
+        <env name="TEST_PG_B_DATABASE" value="ods_test_pg_b_armors"/>
+        <env name="TEST_PG_B2_DATABASE" value="ods_test_pg_b_reporting"/>
         <env name="TEST_PG_RO_USER" value="ods_ro"/>
         <env name="TEST_PG_RO_PASSWORD" value="ods_ro_pass"/>
 

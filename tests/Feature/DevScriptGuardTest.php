@@ -48,7 +48,7 @@ class DevScriptGuardTest extends SyncTestCase
 
     public function test_buat_akun_menolak_dan_tidak_membuat_apa_pun(): void
     {
-        $result = $this->runScriptInProduction('buat-akun.php');
+        $result = $this->runScriptInProduction('scripts/buat-akun.php');
 
         $this->assertNull($result, 'Skrip harus berhenti tanpa melanjutkan.');
         $this->assertSame(0, User::count(), 'Tidak boleh ada akun yang dibuat.');
@@ -56,7 +56,7 @@ class DevScriptGuardTest extends SyncTestCase
 
     public function test_isi_data_contoh_menolak_dan_tidak_menulis_apa_pun(): void
     {
-        $result = $this->runScriptInProduction('isi-data-contoh.php');
+        $result = $this->runScriptInProduction('scripts/isi-data-contoh.php');
 
         $this->assertNull($result, 'Skrip harus berhenti tanpa melanjutkan.');
 
@@ -77,7 +77,7 @@ class DevScriptGuardTest extends SyncTestCase
         ob_start();
 
         try {
-            require base_path('buat-akun.php');
+            require base_path('scripts/buat-akun.php');
         } finally {
             $output = (string) ob_get_clean();
         }

@@ -9,7 +9,7 @@ laptop referensi, bukan contoh karangan.
 
 > **Jangan pakai `.env.example`.** Berkas itu masih bawaan Laravel
 > (`APP_NAME=Laravel`, `DB_CONNECTION=sqlite`, nol konfigurasi tool ini) — ini
-> temuan D1 di `PR.md`. Salin manual dari blok di bawah.
+> temuan D1 di `docs/PR.md`. Salin manual dari blok di bawah.
 
 ---
 
@@ -41,11 +41,19 @@ CREATE DATABASE ods_pg_a;              -- hasil query Oracle
 CREATE DATABASE ods_pg_b_armors;       -- salinan untuk aplikasi ARMORS
 CREATE DATABASE ods_pg_b_reporting;    -- salinan untuk aplikasi reporting
 
+-- Database khusus test (php artisan test men-DROP schema di sini,
+-- jadi JANGAN pakai database di atas untuk test)
+CREATE DATABASE ods_test_meta;
+CREATE DATABASE ods_test_pg_a;
+CREATE DATABASE ods_test_pg_b_armors;
+CREATE DATABASE ods_test_pg_b_reporting;
+
 -- User read-only yang dipakai test.
 -- Passwordnya harus cocok dengan TEST_PG_RO_PASSWORD di phpunit.xml.
 CREATE ROLE ods_ro LOGIN PASSWORD 'ods_ro_pass'
     NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT;
 GRANT CONNECT ON DATABASE ods_pg_b_armors TO ods_ro;
+GRANT CONNECT ON DATABASE ods_test_pg_b_armors TO ods_ro;
 ```
 
 Hak `SELECT` pada schema aplikasi **tidak** perlu di-grant manual — test
@@ -166,16 +174,16 @@ Nilai database test **tidak** dibaca dari `.env`. Semuanya di-hardcode di
 <env name="DB_CONNECTION" value="pgsql"/>
 <env name="DB_HOST" value="127.0.0.1"/>
 <env name="DB_PORT" value="5433"/>
-<env name="DB_DATABASE" value="ods_meta"/>
+<env name="DB_DATABASE" value="ods_test_meta"/>
 <env name="DB_USERNAME" value="postgres"/>
 <env name="DB_PASSWORD" value="postgres"/>
 <env name="TEST_PG_HOST" value="127.0.0.1"/>
 <env name="TEST_PG_PORT" value="5433"/>
 <env name="TEST_PG_USERNAME" value="postgres"/>
 <env name="TEST_PG_PASSWORD" value="postgres"/>
-<env name="TEST_PG_A_DATABASE" value="ods_pg_a"/>
-<env name="TEST_PG_B_DATABASE" value="ods_pg_b_armors"/>
-<env name="TEST_PG_B2_DATABASE" value="ods_pg_b_reporting"/>
+<env name="TEST_PG_A_DATABASE" value="ods_test_pg_a"/>
+<env name="TEST_PG_B_DATABASE" value="ods_test_pg_b_armors"/>
+<env name="TEST_PG_B2_DATABASE" value="ods_test_pg_b_reporting"/>
 <env name="TEST_PG_RO_USER" value="ods_ro"/>
 <env name="TEST_PG_RO_PASSWORD" value="ods_ro_pass"/>
 ```
@@ -196,7 +204,7 @@ Buat akun admin sekaligus data contoh supaya panel langsung bisa dilihat:
 
 ```bash
 # Windows PowerShell
-'require base_path("isi-data-contoh.php");' | php artisan tinker
+'require base_path("scripts/isi-data-contoh.php");' | php artisan tinker
 ```
 
 | | |
@@ -212,7 +220,7 @@ Kalau hanya butuh akunnya saja:
 
 ```bash
 php artisan tinker
-require base_path('buat-akun.php');
+require base_path('scripts/buat-akun.php');
 ```
 
 ---
@@ -255,12 +263,13 @@ memborong job ke antrean, dan tanpa worker job menggantung selamanya.
 php artisan test
 ```
 
-Harus keluar **230 lulus / 591 assertion**. Kalau tidak, cek urutannya:
+Harus keluar **292 lulus**. Kalau tidak, cek urutannya:
 
 | Gejala | Kemungkinan |
 | --- | --- |
 | `could not connect to server` | PostgreSQL mati, atau port tidak 5433 |
-| `database "ods_pg_a" does not exist` | Database langkah 2 belum dibuat |
+| `database "ods_test_pg_a" does not exist` | Database test langkah 2 belum dibuat |
+| `Menolak membersihkan database ...` | Nama database test di `phpunit.xml` tidak mengandung kata `test` |
 | `password authentication failed` | `phpunit.xml` tidak disesuaikan dengan PostgreSQL lokal |
 | `role "ods_ro" does not exist` | Perintah `CREATE ROLE` di langkah 2 belum dijalankan |
 
@@ -268,9 +277,10 @@ Harus keluar **230 lulus / 591 assertion**. Kalau tidak, cek urutannya:
 
 ## Jebakan yang sudah saya temui
 
-1. **`php artisan test` mengosongkan database.** `RefreshDatabase` ikut menghapus
-   akun admin. Setelah test, jalankan lagi `isi-data-contoh.php` kalau mau
-   pakai panel.
+1. **Dulu `php artisan test` mengosongkan database aplikasi.** Test memakai
+   database yang sama dengan panel, sehingga akun admin dan data PG A/PG B ikut
+   terhapus. Sekarang test memakai database `ods_test_*` sendiri, dan menolak
+   berjalan pada database yang namanya tidak mengandung `test`.
 
 2. **`phpunit.xml` meng-hardcode kredensial database test.** Ini yang paling
    sering bikin frustrasi di laptop baru — `.env` sudah benar, tapi test tetap
@@ -293,8 +303,10 @@ Harus keluar **230 lulus / 591 assertion**. Kalau tidak, cek urutannya:
 ```bash
 # 1. database
 createdb ods_meta; createdb ods_pg_a; createdb ods_pg_b_armors; createdb ods_pg_b_reporting
+createdb ods_test_meta; createdb ods_test_pg_a; createdb ods_test_pg_b_armors; createdb ods_test_pg_b_reporting
 psql -c "CREATE ROLE ods_ro LOGIN PASSWORD 'ods_ro_pass' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT"
 psql -c "GRANT CONNECT ON DATABASE ods_pg_b_armors TO ods_ro"
+psql -c "GRANT CONNECT ON DATABASE ods_test_pg_b_armors TO ods_ro"
 
 # 2. dependency
 composer install --ignore-platform-req=ext-oci8
@@ -307,11 +319,11 @@ php artisan key:generate
 
 # 5. database + data awal
 php artisan migrate
-'require base_path("isi-data-contoh.php");' | php artisan tinker
+'require base_path("scripts/isi-data-contoh.php");' | php artisan tinker
 
 # 5. database + data awal
 php artisan migrate
-'require base_path("isi-data-contoh.php");' | php artisan tinker
+'require base_path("scripts/isi-data-contoh.php");' | php artisan tinker
 
 # 6. build + jalankan
 npm run build

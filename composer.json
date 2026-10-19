@@ -1,8 +1,8 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/laravel",
+    "name": "ods/oracle-data-sync",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
+    "description": "Salin data Oracle ke PostgreSQL tanpa pernah menulis ke Oracle.",
     "keywords": ["laravel", "framework"],
     "license": "MIT",
     "require": {

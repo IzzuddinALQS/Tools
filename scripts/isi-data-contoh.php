@@ -15,8 +15,8 @@ use App\Models\User;
  *
  * Jalankan:
  *     php artisan tinker
- *     require base_path('buat-akun.php');
- *     require base_path('isi-data-contoh.php');
+ *     require base_path('scripts/buat-akun.php');
+ *     require base_path('scripts/isi-data-contoh.php');
  */
 
 /*

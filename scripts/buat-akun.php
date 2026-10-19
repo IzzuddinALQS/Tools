@@ -8,7 +8,7 @@ use App\Models\User;
  *
  * Jalankan:
  *     php artisan tinker
- *     require base_path('buat-akun.php');
+ *     require base_path('scripts/buat-akun.php');
  *
  * Ganti EMAIL dan PASSWORD di bawah sesuai keinginan.
  */

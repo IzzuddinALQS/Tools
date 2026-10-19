@@ -828,10 +828,22 @@ Windows worker tidak bisa berjalan; sinkronisasi harus dipicu lewat perintah
 
 | Perintah | Fungsi |
 | --- | --- |
+| `ods:cek-oracle` | Pemeriksaan bertahap kesiapan Oracle (oci8, koneksi, hak akses, contoh tabel) |
 | `oracle-sync:test-connection` | Menguji koneksi sumber data tanpa menyimpan apa pun |
 | `oracle-sync:sync` | Menjalankan sinkronisasi Oracle ke PostgreSQL A |
 | `oracle-sync:reconcile` | Menjalankan sinkronisasi `full` untuk semua dataset `incremental` |
 | `oracle-sync:pause` | Kill switch global: pause dan resume semua job |
+
+### `ods:cek-oracle`
+
+```bash
+php artisan ods:cek-oracle                                  # satu-satunya koneksi Oracle
+php artisan ods:cek-oracle oracle-produksi --tabel=APPS.PO_HEADERS
+php artisan ods:cek-oracle --mock --tabel=APPS.PO_HEADERS   # mencoba tanpa Oracle
+```
+
+Dipakai saat pertama kali memasang di server. Lihat
+[Checklist Serah Terima ke IT](#checklist-serah-terima-ke-it).
 
 ### `oracle-sync:test-connection`
 
@@ -1365,17 +1377,22 @@ Database yang dipakai (`phpunit.xml`):
 
 | Peran | Database |
 | --- | --- |
-| Metadata | `ods_meta` |
-| PG A | `ods_pg_a` |
-| PG B (aplikasi `armors`) | `ods_pg_b_armors` |
-| PG B kedua (aplikasi `reporting`) | `ods_pg_b_reporting` |
+| Metadata | `ods_test_meta` |
+| PG A | `ods_test_pg_a` |
+| PG B (aplikasi `armors`) | `ods_test_pg_b_armors` |
+| PG B kedua (aplikasi `reporting`) | `ods_test_pg_b_reporting` |
+
+Database test **harus terpisah** dari database yang dipakai aplikasi: test
+men-`DROP SCHEMA` di PG A/PG B dan mengosongkan metadata. Nama database test
+wajib mengandung kata `test`; kalau tidak, test menolak berjalan.
 
 Buat lebih dulu:
 
 ```sql
-CREATE DATABASE ods_meta;
-CREATE DATABASE ods_pg_a;
-CREATE DATABASE ods_pg_b_armors;
+CREATE DATABASE ods_test_meta;
+CREATE DATABASE ods_test_pg_a;
+CREATE DATABASE ods_test_pg_b_armors;
+CREATE DATABASE ods_test_pg_b_reporting;
 ```
 
 Variabel yang mengaturnya di `phpunit.xml`:
@@ -1385,19 +1402,17 @@ Variabel yang mengaturnya di `phpunit.xml`:
 | `DB_CONNECTION` | `pgsql` |
 | `DB_HOST` | `127.0.0.1` |
 | `DB_PORT` | `5433` |
-| `DB_DATABASE` | `ods_meta` |
+| `DB_DATABASE` | `ods_test_meta` |
 | `TEST_PG_HOST` | `127.0.0.1` |
 | `TEST_PG_PORT` | `5433` |
 | `TEST_PG_USERNAME` / `TEST_PG_PASSWORD` | `postgres` / `postgres` |
-| `TEST_PG_A_DATABASE` | `ods_pg_a` |
-| `TEST_PG_B_DATABASE` | `ods_pg_b_armors` |
-| `TEST_PG_B2_DATABASE` | `ods_pg_b_reporting` |
+| `TEST_PG_A_DATABASE` | `ods_test_pg_a` |
+| `TEST_PG_B_DATABASE` | `ods_test_pg_b_armors` |
+| `TEST_PG_B2_DATABASE` | `ods_test_pg_b_reporting` |
 | `TEST_PG_RO_USER` / `TEST_PG_RO_PASSWORD` | `ods_ro` / `ods_ro_pass` |
 | `SYNC_LOCK_STORE` | `array` |
 | `QUEUE_CONNECTION` | `sync` |
 
-> Database `ods_pg_b_reporting` juga perlu dibuat bila Anda menjalankan test yang
-> menyalin ke dua PG B sekaligus.
 
 Dua test suite tersedia: `Unit` (termasuk `SelectGuardTest`,
 `OracleTypeMapperTest`, `CanonicalizerTest`) dan `Feature` (termasuk
@@ -1412,29 +1427,53 @@ php artisan test --testsuite=Feature
 
 ## Checklist Serah Terima ke IT
 
-> **Catatan.** Checklist ini memakai istilah panel UI sesuai rancangan aplikasi.
-> Pada commit ini panel belum tersedia (`routes/web.php` baru memuat `/`), jadi
-> setiap langkah yang menyebut tombol disertai perintah artisan yang setara.
+Bagian ini untuk orang yang **pertama kali** mencoba tool ini dengan Oracle
+sungguhan. Seluruh alur sudah diuji dengan driver `mock`; yang belum pernah
+dijalankan hanyalah kelas `app/Services/Source/OracleReader.php` (satu-satunya
+kode yang berbicara dengan Oracle). Jadi bila ada yang perlu disesuaikan,
+hampir pasti cukup di file itu atau di `config/oracle-sync.php`.
 
-- [ ] DBA membuat user Oracle `SELECT`-only dan menyerahkan kredensialnya ke IT. Perintah SQL-nya ada di bagian [Keamanan](#keamanan), butir 2. Tool tidak pernah membuat user di Oracle, jadi langkah ini wajib dikerjakan manual.
-- [ ] Tim IT menyimpan salinan perintah SQL tersebut di dokumen serah terima internal, sehingga langkah ini bisa diverifikasi ulang.
-- [ ] `oci8` terpasang di server; `php -m | grep oci8` menampilkan `oci8`.
-- [ ] `.env` terisi: `APP_ENV=production`, `APP_DEBUG=false`, `SYNC_LOCK_STORE=redis`.
-- [ ] `APP_KEY` produksi sudah dicatat di password manager — **jangan** menjalankan `key:generate` lagi.
-- [ ] Connection dibuat dengan driver `oracle` dan kredensial DBA.
-- [ ] Tombol **Tes Koneksi** ditekan dan hasilnya **OK**. Setara artisan: `php artisan oracle-sync:test-connection nama-koneksi`.
-- [ ] Query `SELECT` ditulis di SQL Editor.
-- [ ] Tombol **Preview** ditekan, lalu nama kolom, tipe Oracle, tipe PostgreSQL, dan setiap peringatan diperiksa. Batas 20 baris, tidak ada yang disimpan.
-- [ ] Tombol **Simpan ke PG A** ditekan.
-- [ ] Sinkronisasi pertama dijalankan.
-- [ ] Verifikasi berhasil muncul di panel Riwayat, dan jumlah baris di sisi Oracle cocok.
-- [ ] Nilai `_sync.status.last_success_at` disalin ke aplikasi agar bisa menampilkan "data terakhir diperbarui pukul ...".
-- [ ] Target PG B untuk aplikasi dibuat, dengan `app_name` terisi.
-- [ ] Tabel disalin dari A ke B, dan verifikasi berhasil muncul.
-- [ ] User read-only untuk aplikasi dibuat, memakai perintah SQL di bagian [User Read-Only untuk PG B](#user-read-only-untuk-pg-b).
-- [ ] `ods-worker` dan `ods-scheduler` aktif, atau cron `schedule:run` tiap menit aktif — **salah satu**, jangan keduanya.
-- [ ] Tombol **Pause semua job** diuji lalu **Resume**. Setara artisan: `php artisan oracle-sync:pause --reason="tes"` lalu `php artisan oracle-sync:pause --resume`.
-- [ ] Setelah satu jam dan setelah satu malam, jumlah baris di PG B tetap cocok dengan Oracle.
+### Langkah 1 — periksa kesiapan dengan satu perintah
+
+```bash
+php artisan ods:cek-oracle nama-koneksi --tabel=SKEMA.NAMA_TABEL
+```
+
+Perintah ini memeriksa berurutan dan menjelaskan perbaikannya bila gagal:
+
+1. ekstensi `oci8` dan versi Oracle Instant Client;
+2. koneksi + `SELECT 1 FROM DUAL`, dan schema bawaan sesi;
+3. hak akses akun (memperingatkan bila akun punya hak menulis);
+4. membaca contoh tabel: daftar kolom, tipe Oracle → tipe PostgreSQL.
+
+Koneksi dibuat lebih dulu dari panel: **Koneksi → Sumber koneksi → Tambah sumber**.
+Ingin melihat keluaran perintah tanpa Oracle? `php artisan ods:cek-oracle --mock --tabel=APPS.PO_HEADERS`.
+
+### Langkah 2 — alur di panel
+
+- [ ] DBA membuat user Oracle `SELECT`-only (SQL di bagian [Keamanan](#keamanan), butir 2).
+- [ ] `php -m | grep oci8` menampilkan `oci8`; `php artisan ods:cek-oracle` lolos semua.
+- [ ] `.env` produksi: `APP_ENV=production`, `APP_DEBUG=false`, `SYNC_LOCK_STORE=redis`. `APP_KEY` dicatat di password manager — **jangan** `key:generate` lagi.
+- [ ] **Koneksi → Aplikasi tujuan**: Database Penampung (PG A) dan Database Aplikasi (PG B, `app_name` terisi), lalu **Tes koneksi** pada masing-masing.
+- [ ] **Dataset → Dataset baru**: tulis query, **Coba jalankan**, periksa tipe kolom (bagian "Tipe kolom di PostgreSQL"), simpan.
+- [ ] **Ambil data sekarang** → di Riwayat muncul **Berhasil** dan **Data cocok**.
+- [ ] **Kirim ke Aplikasi** → **Data cocok**. Buat akun baca-saja ([User Read-Only untuk PG B](#user-read-only-untuk-pg-b)).
+- [ ] Penjadwal dan worker aktif (lihat [Queue Worker & Scheduler](#queue-worker--scheduler)). Beranda **tidak** lagi menampilkan peringatan "Jadwal otomatis".
+- [ ] **Hentikan semua** lalu **Lanjutkan semua** diuji.
+- [ ] Setelah satu jam dan satu malam, jumlah baris di PG B tetap cocok dengan Oracle.
+
+### Titik yang paling mungkin perlu disesuaikan
+
+Belum bisa diuji tanpa Oracle. Bila salah satu terjadi, perbaikannya kecil dan
+terlokalisasi:
+
+| Gejala | Tempat menyesuaikan |
+| --- | --- |
+| `ALTER SESSION` ditolak DBA (muncul di log sebagai "Oracle session setting gagal") | Kosongkan nilai terkait di `config/oracle-sync.php` → `session` |
+| Kolom `CLOB`/`BLOB` kosong atau rusak (LOB sudah dibaca menjadi string; bila tetap bermasalah) | `OracleReader::materializeLobs()` |
+| Schema bawaan salah (query tanpa schema tidak menemukan tabel) | `OracleReader::defaultSchema()`; atau tulis schema di query, mis. `APPS.PO_HEADERS` |
+| Tipe kolom query JOIN/agregasi tidak terbaca | `OracleReader::describeStatement()` (`getColumnMeta` dari yajra/laravel-oci8) |
+| Tanggal/angka tidak cocok saat verifikasi | Format NLS di `config/oracle-sync.php` → `session` |
 
 ---
 
@@ -1479,9 +1518,6 @@ Dinyatakan terbuka, bukan disembunyikan.
    `CREATE ROLE` butuh hak admin. Bila ditolak, sinkronisasi tetap berjalan dan
    hanya muncul peringatan; DBA harus menjalankan SQL secara manual.
 
-7. **Endpoint refresh untuk aplikasi belum ada.** Nilainya sudah terdaftar di enum
-   dan skema (`RunTriggerEnum::Api`, `runs.api_token_id`), tetapi belum ada route
-   yang memanggilnya.
 
 ---
 

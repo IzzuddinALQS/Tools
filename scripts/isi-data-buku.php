@@ -9,10 +9,10 @@
  *
  * Jalankan:
  *     php artisan tinker
- *     require base_path('isi-data-buku.php');
+ *     require base_path('scripts/isi-data-buku.php');
  *
  * atau:
- *     php artisan tinker --execute="require base_path('isi-data-buku.php');"
+ *     php artisan tinker --execute="require base_path('scripts/isi-data-buku.php');"
  *
  * Aman dijalankan berulang: semuanya update-or-create.
  */
