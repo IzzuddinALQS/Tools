@@ -4,12 +4,22 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Masuk — Oracle Data Sync</title>
+    {{-- Tema: dipasang sebelum CSS dimuat agar tidak berkedip. Pilihan
+         disimpan di localStorage ('ods-theme'): light | dark | (kosong = ikut sistem). --}}
+    <script>
+        (function () {
+            var pref = null;
+            try { pref = localStorage.getItem('ods-theme'); } catch (e) {}
+            var dark = pref ? pref === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+            document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+        })();
+    </script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 <body class="min-h-screen bg-ink-50">
     <div class="grid min-h-screen lg:grid-cols-2">
         <!-- Penjelasan singkat (layar lebar) -->
-        <div class="hidden flex-col justify-between bg-brand-700 p-12 text-white lg:flex">
+        <div class="hidden flex-col justify-between bg-brand-600 p-12 text-white lg:flex">
             <div class="flex items-center gap-3">
                 <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 5.5h5v5H5zM14 13.5h5v5h-5zM7.5 10.5v5.5h6.5" /></svg>
@@ -19,7 +29,7 @@
 
             <div class="max-w-md">
                 <h1 class="text-3xl leading-tight font-bold">Salin data Oracle ke PostgreSQL, tanpa pernah mengubah Oracle.</h1>
-                <ul class="mt-8 space-y-4 text-brand-100">
+                <ul class="mt-8 space-y-4 text-white/85">
                     <li class="flex gap-3">
                         <span class="mt-1 h-2 w-2 shrink-0 rounded-full bg-emerald-300"></span>
                         Tulis query SELECT biasa, lihat contoh hasilnya, lalu simpan.
@@ -35,7 +45,7 @@
                 </ul>
             </div>
 
-            <p class="text-sm text-brand-200">Oracle hanya dibaca, tidak pernah ditulis.</p>
+            <p class="text-sm text-white/70">Oracle hanya dibaca, tidak pernah ditulis.</p>
         </div>
 
         <!-- Form masuk -->

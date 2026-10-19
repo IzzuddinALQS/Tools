@@ -42,7 +42,7 @@ watch(() => page.props.flash, (flash) => {
       <div
         v-for="toast in toasts"
         :key="toast.id"
-        class="pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-xl border bg-white p-4 shadow-lg"
+        class="pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-xl border bg-surface p-4 shadow-lg"
         :class="toast.type === 'success' ? 'border-emerald-200' : 'border-red-200'"
         role="status"
       >

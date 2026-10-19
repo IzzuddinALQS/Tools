@@ -401,7 +401,7 @@ const extraErrors = (form, known) => errorList(form.errors, known)
           <div>
             <span class="label">Kunci akses</span>
             <div class="mt-1.5 flex items-center gap-2">
-              <code class="mono flex-1 overflow-x-auto rounded-xl border border-emerald-300 bg-white px-3.5 py-2.5 text-ink-900">{{ revealed.plain }}</code>
+              <code class="mono flex-1 overflow-x-auto rounded-xl border border-emerald-300 bg-surface px-3.5 py-2.5 text-ink-900">{{ revealed.plain }}</code>
               <button type="button" class="btn-secondary btn-sm shrink-0" @click="copy(revealed.plain, 'plain')">
                 <Icon :name="copied === 'plain' ? 'check' : 'copy'" :size="16" /> {{ copied === 'plain' ? 'Tersalin' : 'Salin' }}
               </button>
@@ -416,7 +416,7 @@ const extraErrors = (form, known) => errorList(form.errors, known)
                 menyalin teks secara manual menghasilkan URL yang rusak karena
                 diawali "POST ".
               -->
-              <code class="mono flex-1 overflow-x-auto rounded-xl border border-emerald-300 bg-white px-3.5 py-2.5 text-ink-900">{{ endpoint }}</code>
+              <code class="mono flex-1 overflow-x-auto rounded-xl border border-emerald-300 bg-surface px-3.5 py-2.5 text-ink-900">{{ endpoint }}</code>
               <button type="button" class="btn-secondary btn-sm shrink-0" @click="copy(endpoint, 'url')">
                 <Icon :name="copied === 'url' ? 'check' : 'copy'" :size="16" /> {{ copied === 'url' ? 'Tersalin' : 'Salin' }}
               </button>
@@ -507,7 +507,7 @@ const extraErrors = (form, known) => errorList(form.errors, known)
                 :key="opt.v"
                 type="button"
                 class="rounded-full border px-3 py-1.5 text-[13px] font-medium transition"
-                :class="connectBy === opt.v ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-ink-200 bg-white text-ink-600 hover:border-ink-300'"
+                :class="connectBy === opt.v ? 'border-brand-500 bg-brand-50 text-brand-700' : 'border-ink-200 bg-surface text-ink-600 hover:border-ink-300'"
                 @click="connectBy = opt.v"
               >
                 {{ opt.l }}

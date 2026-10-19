@@ -39,14 +39,14 @@ const widths = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-3xl' }
     >
       <div
         v-if="open"
-        class="fixed inset-0 z-50 flex items-end justify-center bg-ink-950/40 p-0 backdrop-blur-[2px] sm:items-center sm:p-6"
+        class="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/50 p-0 backdrop-blur-[2px] sm:items-center sm:p-6"
         @mousedown.self="emit('close')"
       >
         <div
           role="dialog"
           aria-modal="true"
           :aria-label="title"
-          class="flex max-h-[92vh] w-full flex-col rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl"
+          class="flex max-h-[92vh] w-full flex-col rounded-t-2xl bg-surface shadow-2xl sm:rounded-2xl"
           :class="widths[size]"
         >
           <header class="flex items-start justify-between gap-4 border-b border-ink-100 px-6 pt-5 pb-4">

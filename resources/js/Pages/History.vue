@@ -151,7 +151,7 @@ function pageLabel(label) {
         class="min-w-9 rounded-lg border px-3 py-1.5 text-center text-sm"
         :class="link.active
           ? 'border-brand-600 bg-brand-600 font-semibold text-white'
-          : link.url ? 'border-ink-200 bg-white text-ink-700 hover:bg-ink-50' : 'border-ink-100 text-ink-400'"
+          : link.url ? 'border-ink-200 bg-surface text-ink-700 hover:bg-ink-50' : 'border-ink-100 text-ink-400'"
       >
         {{ pageLabel(link.label) }}
       </component>

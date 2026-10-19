@@ -129,7 +129,7 @@ const verdict = computed(() => {
         <span class="section-title">Query yang dijalankan</span>
         <span class="text-ink-400 transition group-open:rotate-180"><Icon name="chevron-down" /></span>
       </summary>
-      <pre class="mono mx-6 mb-6 overflow-auto rounded-xl bg-ink-900 p-4 leading-relaxed text-ink-100">{{ run.sql_text }}</pre>
+      <pre class="mono mx-6 mb-6 overflow-auto rounded-xl bg-slate-900 p-4 leading-relaxed text-slate-100">{{ run.sql_text }}</pre>
     </details>
 
     <details v-if="run.verification || run.sql_hash" class="group surface">
@@ -145,7 +145,7 @@ const verdict = computed(() => {
         <p class="text-sm text-ink-600">
           Sidik jari (hash) sisi Oracle dihitung saat membaca baris tanpa query tambahan; sisi PostgreSQL dihitung dengan cara yang sama.
         </p>
-        <pre v-if="run.verification" class="mono overflow-auto rounded-xl bg-ink-900 p-4 text-xs leading-relaxed text-ink-100">{{ JSON.stringify(run.verification, null, 2) }}</pre>
+        <pre v-if="run.verification" class="mono overflow-auto rounded-xl bg-slate-900 p-4 text-xs leading-relaxed text-slate-100">{{ JSON.stringify(run.verification, null, 2) }}</pre>
       </div>
     </details>
   </PageHeader>

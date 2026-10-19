@@ -64,7 +64,7 @@ const summary = computed(() => describeCron(props.modelValue))
         class="rounded-full border px-3 py-1.5 text-[13px] font-medium transition"
         :class="schedule.type === type.value
           ? 'border-brand-500 bg-brand-50 text-brand-700'
-          : 'border-ink-200 bg-white text-ink-600 hover:border-ink-300'"
+          : 'border-ink-200 bg-surface text-ink-600 hover:border-ink-300'"
         @click="setType(type.value)"
       >
         {{ type.label }}

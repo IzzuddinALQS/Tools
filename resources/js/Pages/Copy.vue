@@ -118,19 +118,19 @@ const otherErrors = computed(() => errorList(form.errors, ['dataset_id', 'target
         <h2 class="font-semibold text-ink-900">Cara kerjanya</h2>
         <ol class="space-y-4 text-sm text-ink-700">
           <li class="flex gap-3">
-            <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-xs font-bold text-brand-700 ring-1 ring-ink-200">1</span>
+            <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface text-xs font-bold text-brand-700 ring-1 ring-ink-200">1</span>
             <span>Struktur dan isi tabel dari Database Penampung disalin utuh.</span>
           </li>
           <li class="flex gap-3">
-            <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-xs font-bold text-brand-700 ring-1 ring-ink-200">2</span>
+            <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface text-xs font-bold text-brand-700 ring-1 ring-ink-200">2</span>
             <span>Tabel di Database Aplikasi diganti dalam sekali langkah, jadi aplikasi tidak melihat data setengah jadi.</span>
           </li>
           <li class="flex gap-3">
-            <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-xs font-bold text-brand-700 ring-1 ring-ink-200">3</span>
+            <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface text-xs font-bold text-brand-700 ring-1 ring-ink-200">3</span>
             <span>Isi kedua tabel dibandingkan. Hasilnya tampil sebagai <strong>Data cocok</strong> atau <strong>Data tidak cocok</strong>.</span>
           </li>
         </ol>
-        <p class="rounded-xl bg-white p-3.5 text-sm text-ink-600 ring-1 ring-ink-200">
+        <p class="rounded-xl bg-surface p-3.5 text-sm text-ink-600 ring-1 ring-ink-200">
           Ingin otomatis? Buka dataset, lalu di langkah 4 centang aplikasi tujuan.
         </p>
       </aside>

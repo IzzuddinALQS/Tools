@@ -34,10 +34,10 @@ const open = ref(false)
     <span
       v-if="open"
       role="tooltip"
-      class="absolute top-full left-0 z-40 mt-2 w-72 rounded-xl bg-ink-900 p-3.5 text-left text-[13px] leading-relaxed font-normal tracking-normal text-white normal-case shadow-xl"
+      class="absolute top-full left-0 z-40 mt-2 w-72 rounded-xl bg-slate-900 p-3.5 text-left text-[13px] leading-relaxed font-normal tracking-normal text-white normal-case shadow-xl"
     >
-      <strong class="block font-semibold">{{ entry.label }}<span v-if="entry.tech" class="font-normal text-ink-300"> · {{ entry.tech }}</span></strong>
-      <span class="mt-1 block text-ink-200">{{ entry.help }}</span>
+      <strong class="block font-semibold">{{ entry.label }}<span v-if="entry.tech" class="font-normal text-slate-300"> · {{ entry.tech }}</span></strong>
+      <span class="mt-1 block text-slate-200">{{ entry.help }}</span>
     </span>
   </span>
 </template>

@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Models\Dataset;
 use App\Models\Run;
+use App\Services\Api\RuntimeStatus;
 use App\Services\Guard\KillSwitch;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -21,6 +23,7 @@ class DashboardController extends Controller
                 'datasets' => Dataset::count(),
                 'datasets_active' => Dataset::where('status', 'active')->count(),
             ],
+            'runtime' => $this->runtime(),
             'recentRuns' => Run::query()
                 ->with(['dataset:id,name', 'target:id,name'])
                 ->latest('id')
@@ -53,5 +56,40 @@ class DashboardController extends Controller
                     'reconcile_cron' => $dataset->reconcile_cron,
                 ]),
         ]);
+    }
+
+    /**
+     * Apakah jadwal otomatis benar-benar berjalan.
+     *
+     * - scheduler: heartbeat dicatat `schedule:run` tiap menit
+     *   (lihat routes/console.php). Basi = cron/scheduler mati.
+     * - worker: job yang menunggu lebih dari 2 menit di tabel `jobs` berarti
+     *   tidak ada `queue:work` yang mengambilnya.
+     *
+     * @return array<string,mixed>
+     */
+    private function runtime(): array
+    {
+        $queue = ['checked' => false, 'pending' => 0, 'oldest_age' => null];
+
+        if (config('queue.default') === 'database') {
+            $table = config('queue.connections.database.table', 'jobs');
+
+            try {
+                $oldest = DB::table($table)->whereNull('reserved_at')->min('available_at');
+                $queue = [
+                    'checked' => true,
+                    'pending' => DB::table($table)->count(),
+                    'oldest_age' => $oldest ? max(0, now()->timestamp - (int) $oldest) : null,
+                ];
+            } catch (\Throwable) {
+                // Tabel antrean belum dimigrasi: anggap tidak diketahui.
+            }
+        }
+
+        return [
+            'scheduler' => RuntimeStatus::workerStatus(),
+            'queue' => $queue,
+        ];
     }
 }

@@ -50,7 +50,77 @@
   --color-brand-800: #3730a3;
   --color-brand-900: #312e81;
 
+  /* Latar kartu/panel. Pakai bg-surface, bukan bg-white, agar ikut tema gelap. */
+  --color-surface: #ffffff;
+
   --radius-card: 1rem;
+}
+
+/* ------------------------------------------------------------------
+   Tema gelap
+   ------------------------------------------------------------------
+   Diaktifkan lewat <html data-theme="dark"> (lihat skrip di app.blade.php:
+   mengikuti sistem, bisa diganti di menu profil). Halaman tidak perlu
+   class dark: apa pun — palet di bawah dibalik, sehingga bg-red-50 menjadi
+   merah gelap dan text-red-800 menjadi merah terang. Nada 400–600 (tombol
+   utama, titik status) sengaja tidak diubah.
+------------------------------------------------------------------- */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-surface: #111827;
+
+  --color-ink-50: #0b1120;
+  --color-ink-100: #172033;
+  --color-ink-200: #263248;
+  --color-ink-300: #3b475c;
+  --color-ink-400: #66758c;
+  --color-ink-500: #9aa8bc;
+  --color-ink-600: #c0cad8;
+  --color-ink-700: #dbe2ec;
+  --color-ink-800: #edf1f6;
+  --color-ink-900: #f8fafc;
+  --color-ink-950: #ffffff;
+
+  --color-brand-50: #1a1c3d;
+  --color-brand-100: #23265a;
+  --color-brand-200: #303580;
+  --color-brand-300: #4044a6;
+  --color-brand-700: #a5b4fc;
+  --color-brand-800: #c7d2fe;
+  --color-brand-900: #e0e7ff;
+
+  --color-emerald-50: #0a2a20;
+  --color-emerald-100: #0d3a2b;
+  --color-emerald-200: #125740;
+  --color-emerald-300: #1b7a59;
+  --color-emerald-700: #6ee7b7;
+  --color-emerald-800: #a7f3d0;
+  --color-emerald-900: #d1fae5;
+
+  --color-red-50: #2e1215;
+  --color-red-100: #451a1e;
+  --color-red-200: #6b2329;
+  --color-red-300: #8f2d35;
+  --color-red-700: #fca5a5;
+  --color-red-800: #fecaca;
+  --color-red-900: #fee2e2;
+
+  --color-amber-50: #2b1f08;
+  --color-amber-100: #3d2c0b;
+  --color-amber-200: #634610;
+  --color-amber-300: #8a6216;
+  --color-amber-700: #fcd34d;
+  --color-amber-800: #fde68a;
+  --color-amber-900: #fef3c7;
+
+  --color-purple-50: #241433;
+  --color-purple-100: #321b48;
+  --color-purple-200: #4a2870;
+  --color-purple-300: #643596;
+  --color-purple-700: #d8b4fe;
+  --color-purple-800: #e9d5ff;
+  --color-purple-900: #f3e8ff;
 }
 
 @layer base {
@@ -92,7 +162,7 @@
 }
 
 @utility input {
-  @apply w-full rounded-xl border border-ink-300 bg-white px-3.5 py-2.5 text-[15px] text-ink-900
+  @apply w-full rounded-xl border border-ink-300 bg-surface px-3.5 py-2.5 text-[15px] text-ink-900
          placeholder:text-ink-400
          focus:border-brand-500 focus:ring-4 focus:ring-brand-500/15 focus:outline-none
          disabled:bg-ink-100 disabled:text-ink-500;
@@ -101,7 +171,7 @@
 @layer components {
   /* ---------------- Surface ---------------- */
   .surface {
-    @apply rounded-[var(--radius-card)] border border-ink-200 bg-white;
+    @apply rounded-[var(--radius-card)] border border-ink-200 bg-surface;
     box-shadow: 0 1px 2px 0 rgb(15 23 42 / 0.04);
   }
 
@@ -136,11 +206,11 @@
 
   /* ---------------- Tombol ---------------- */
   .btn-primary {
-    @apply btn bg-brand-600 text-white shadow-sm hover:bg-brand-700 active:bg-brand-800;
+    @apply btn bg-brand-600 text-white shadow-sm hover:bg-brand-500 active:bg-brand-600;
   }
 
   .btn-secondary {
-    @apply btn border border-ink-300 bg-white text-ink-800 hover:border-ink-400 hover:bg-ink-50;
+    @apply btn border border-ink-300 bg-surface text-ink-800 hover:border-ink-400 hover:bg-ink-50;
   }
 
   .btn-ghost {
@@ -148,11 +218,11 @@
   }
 
   .btn-danger {
-    @apply btn border border-red-200 bg-white text-red-700 hover:border-red-300 hover:bg-red-50;
+    @apply btn border border-red-200 bg-surface text-red-700 hover:border-red-300 hover:bg-red-50;
   }
 
   .btn-danger-solid {
-    @apply btn bg-red-600 text-white shadow-sm hover:bg-red-700;
+    @apply btn bg-red-600 text-white shadow-sm hover:bg-red-500;
   }
 
   .btn-sm {
@@ -181,7 +251,7 @@
   }
 
   .choice {
-    @apply flex cursor-pointer gap-3 rounded-xl border border-ink-200 bg-white p-4 transition
+    @apply flex cursor-pointer gap-3 rounded-xl border border-ink-200 bg-surface p-4 transition
            hover:border-ink-300 has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50/60
            has-[:checked]:ring-4 has-[:checked]:ring-brand-500/10;
   }
@@ -192,7 +262,7 @@
 
   /* ---------------- Tabel ---------------- */
   .table-wrap {
-    @apply overflow-x-auto rounded-[var(--radius-card)] border border-ink-200 bg-white;
+    @apply overflow-x-auto rounded-[var(--radius-card)] border border-ink-200 bg-surface;
   }
 
   .table-scroll {
@@ -224,8 +294,12 @@
   .badge-info    { @apply badge bg-brand-50 text-brand-700 ring-brand-200; }
   .badge-purple  { @apply badge bg-purple-50 text-purple-700 ring-purple-200; }
 
-  /* ---------------- CodeMirror SQL editor ---------------- */
+  /* ---------------- CodeMirror SQL editor ----------------
+     Sengaja tetap terang di tema gelap: warna sintaks bawaan CodeMirror
+     dirancang untuk latar terang. */
   .cm-editor {
+    color: #0f172a;
+    color-scheme: light;
     background: #fbfcfe;
     font-family: var(--font-mono);
     font-size: 14px;

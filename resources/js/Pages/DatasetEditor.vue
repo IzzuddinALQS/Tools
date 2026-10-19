@@ -310,7 +310,7 @@ const showAdvanced = ref(Boolean(props.dataset?.destination_table))
 
               <PreviewTable :columns="preview.columns" :rows="preview.rows" />
 
-              <details class="group rounded-xl border border-ink-200 bg-white">
+              <details class="group rounded-xl border border-ink-200 bg-surface">
                 <summary class="flex cursor-pointer items-center justify-between px-4 py-3 text-sm font-semibold text-ink-800">
                   Tipe kolom di PostgreSQL
                   <span class="text-ink-400 transition group-open:rotate-180"><Icon name="chevron-down" /></span>
@@ -456,7 +456,7 @@ const showAdvanced = ref(Boolean(props.dataset?.destination_table))
                     class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-mono text-[13px] transition"
                     :class="form.key_columns.includes(column.name)
                       ? 'border-brand-600 bg-brand-600 text-white'
-                      : 'border-ink-300 bg-white text-ink-700 hover:border-ink-400'"
+                      : 'border-ink-300 bg-surface text-ink-700 hover:border-ink-400'"
                     :aria-pressed="form.key_columns.includes(column.name)"
                     @click="toggleKeyColumn(column.name)"
                   >
@@ -592,7 +592,7 @@ const showAdvanced = ref(Boolean(props.dataset?.destination_table))
   </div>
 
   <!-- Bar simpan -->
-  <div class="fixed inset-x-0 bottom-0 z-20 border-t border-ink-200 bg-white/95 backdrop-blur lg:left-64">
+  <div class="fixed inset-x-0 bottom-0 z-20 border-t border-ink-200 bg-surface/95 backdrop-blur lg:left-64">
     <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-3 sm:px-6 lg:px-10">
       <span v-if="form.isDirty" class="inline-flex items-center gap-2 text-sm font-medium text-amber-800">
         <span class="h-2 w-2 rounded-full bg-amber-500"></span> Ada perubahan yang belum disimpan

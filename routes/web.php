@@ -4,6 +4,7 @@ use App\Http\Controllers\ApiTokenController;
 use App\Http\Controllers\CopyController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DatasetController;
+use App\Http\Controllers\DemoSetupController;
 use App\Http\Controllers\DriverController;
 use App\Http\Controllers\HistoryController;
 use App\Http\Controllers\LoginController;
@@ -56,7 +57,12 @@ Route::middleware('auth')->group(function (): void {
     Route::delete('/datasets/{dataset}', [DatasetController::class, 'destroy'])->name('datasets.destroy');
 
     // Hanya admin (Keamanan 3).
+    Route::inertia('/bantuan', 'Help')->name('help');
+
     Route::middleware('admin')->group(function (): void {
+        // Tombol "Coba dengan data contoh" di Beranda.
+        Route::post('/contoh', DemoSetupController::class)->name('demo.setup');
+
         Route::get('/drivers', [DriverController::class, 'index'])->name('drivers.index');
         Route::post('/drivers/connections', [DriverController::class, 'storeConnection'])->name('drivers.connections.store');
         Route::put('/drivers/connections/{connection}', [DriverController::class, 'updateConnection'])->name('drivers.connections.update');

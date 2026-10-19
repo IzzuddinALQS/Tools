@@ -1,18 +1,53 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { Head, Link, usePage } from '@inertiajs/vue3'
+import { Head, Link, router, usePage } from '@inertiajs/vue3'
 import PageHeader from '../Components/PageHeader.vue'
 import StatusBadge from '../Components/StatusBadge.vue'
 import VerifyBadge from '../Components/VerifyBadge.vue'
 import Icon from '../Components/Icon.vue'
 import Term from '../Components/Term.vue'
 import EmptyState from '../Components/EmptyState.vue'
+import WarningList from '../Components/WarningList.vue'
 import { RUN_KIND, describeCron, formatNumber, timeAgo, verificationState } from '../lib/terms.js'
 
 const props = defineProps({
   stats: { type: Object, required: true },
   recentRuns: { type: Array, default: () => [] },
   datasets: { type: Array, default: () => [] },
+  runtime: { type: Object, default: () => ({ scheduler: { known: false }, queue: { checked: false } }) },
+})
+
+/* ---------------- Status jadwal otomatis ---------------- */
+const QUEUE_STUCK_AFTER = 120
+
+const automation = computed(() => {
+  const { scheduler = {}, queue = {} } = props.runtime ?? {}
+
+  if (queue.checked && queue.oldest_age !== null && queue.oldest_age > QUEUE_STUCK_AFTER) {
+    return {
+      tone: 'red',
+      title: 'Proses otomatis tertahan',
+      text: `${queue.pending} proses menunggu dikerjakan sejak ${Math.round(queue.oldest_age / 60)} menit lalu. Pekerja antrean (queue worker) tidak berjalan.`,
+      command: 'php artisan queue:work --queue=sync --tries=1 --timeout=3600',
+    }
+  }
+  if (!scheduler.known) {
+    return {
+      tone: 'amber',
+      title: 'Jadwal otomatis belum pernah berjalan',
+      text: 'Data hanya diperbarui saat Anda menekan tombol. Agar jadwal berjalan, penjadwal dan pekerja antrean harus dinyalakan di server.',
+      command: 'php artisan schedule:work   (dan di terminal lain)   php artisan queue:work --queue=sync',
+    }
+  }
+  if (!scheduler.alive) {
+    return {
+      tone: 'red',
+      title: 'Penjadwal berhenti',
+      text: `Penjadwal terakhir terlihat ${timeAgo(scheduler.at)}. Jadwal ambil data tidak akan berjalan sampai dinyalakan lagi.`,
+      command: 'php artisan schedule:work',
+    }
+  }
+  return { tone: 'ok' }
 })
 
 const page = usePage()
@@ -67,6 +102,12 @@ const setupComplete = computed(() => steps.value.filter((s) => !s.optional).ever
 const showGuide = ref(!setupComplete.value)
 const nextStep = computed(() => steps.value.findIndex((s) => !s.done))
 
+const demoLoading = ref(false)
+function startDemo() {
+  demoLoading.value = true
+  router.post('/contoh', {}, { onFinish: () => { demoLoading.value = false } })
+}
+
 /* ---------------- Kesehatan ---------------- */
 const latestRunByDataset = computed(() => {
   const map = {}
@@ -116,7 +157,7 @@ const summary = computed(() => [
 
     <!-- Panduan langkah awal -->
     <section v-if="showGuide" class="surface overflow-hidden">
-      <div class="flex flex-wrap items-center justify-between gap-4 border-b border-ink-100 bg-gradient-to-r from-brand-50 to-white px-6 py-5">
+      <div class="flex flex-wrap items-center justify-between gap-4 border-b border-ink-100 bg-gradient-to-r from-brand-50 to-surface px-6 py-5">
         <div>
           <p class="section-title">Mulai di sini</p>
           <p class="mt-0.5 text-sm text-ink-600">Ikuti langkah berikut untuk memindahkan data pertama Anda.</p>
@@ -128,6 +169,18 @@ const summary = computed(() => [
           <span class="text-sm font-medium text-ink-700">{{ doneCount }} dari {{ steps.length }}</span>
           <button v-if="setupComplete" type="button" class="btn-ghost btn-xs" @click="showGuide = false">Sembunyikan</button>
         </div>
+      </div>
+
+      <div v-if="isAdmin && stats.datasets === 0" class="flex flex-wrap items-center gap-4 border-b border-ink-100 bg-emerald-50/60 px-6 py-4">
+        <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700"><Icon name="spark" :size="18" /></span>
+        <p class="min-w-0 flex-1 text-sm text-ink-700">
+          <strong class="text-ink-900">Ingin melihat cara kerjanya dulu?</strong>
+          Buat contoh lengkap dalam satu klik memakai Oracle tiruan, tanpa perlu akses Oracle sungguhan.
+        </p>
+        <button type="button" class="btn-secondary btn-sm" :disabled="demoLoading" @click="startDemo">
+          <Icon :name="demoLoading ? 'refresh' : 'play'" :size="16" :class="demoLoading ? 'animate-spin' : ''" />
+          {{ demoLoading ? 'Menyiapkan…' : 'Coba dengan data contoh' }}
+        </button>
       </div>
 
       <ol class="divide-y divide-ink-100">
@@ -164,6 +217,23 @@ const summary = computed(() => [
     <button v-else-if="!setupComplete" type="button" class="btn-ghost btn-sm" @click="showGuide = true">
       <Icon name="help" /> Tampilkan panduan langkah awal
     </button>
+
+    <!-- Status jadwal otomatis -->
+    <WarningList
+      v-if="automation.tone !== 'ok' && setupComplete"
+      :tone="automation.tone === 'red' ? 'red' : 'amber'"
+      :title="automation.title"
+    >
+      <p>{{ automation.text }}</p>
+      <p v-if="isAdmin" class="mt-2">
+        Jalankan di server: <span class="kbd break-all">{{ automation.command }}</span>
+        <span class="mt-1 block text-[13px] opacity-80">Panduan lengkap ada di halaman <Link href="/bantuan#jadwal" class="font-semibold underline">Bantuan</Link>.</span>
+      </p>
+      <p v-else class="mt-2">Hubungi admin tool ini.</p>
+    </WarningList>
+    <p v-else-if="setupComplete" class="inline-flex items-center gap-2 text-sm text-ink-600">
+      <span class="h-2 w-2 rounded-full bg-emerald-500"></span> Jadwal otomatis berjalan normal.
+    </p>
 
     <!-- Ringkasan -->
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

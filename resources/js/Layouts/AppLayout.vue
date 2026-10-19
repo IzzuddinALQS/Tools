@@ -7,6 +7,7 @@ import Modal from '../Components/Modal.vue'
 import Field from '../Components/Field.vue'
 import Toasts from '../Components/Toasts.vue'
 import ConfirmDialog from '../Components/ConfirmDialog.vue'
+import { setTheme, themePreference } from '../lib/theme.js'
 
 const page = usePage()
 
@@ -32,6 +33,7 @@ const links = computed(() => {
     { href: '/datasets', label: 'Dataset', icon: 'table' },
     { href: '/copy', label: 'Kirim ke Aplikasi', icon: 'send' },
     { href: '/history', label: 'Riwayat', icon: 'history' },
+    { href: '/bantuan', label: 'Bantuan', icon: 'help' },
   ]
 })
 
@@ -66,7 +68,7 @@ function changePassword() {
 <template>
   <div class="min-h-screen bg-ink-50">
     <!-- Tombol darurat aktif: pita di semua halaman -->
-    <div v-if="paused" class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-purple-700 px-4 py-2.5 text-center text-sm text-white">
+    <div v-if="paused" class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-purple-600 px-4 py-2.5 text-center text-sm text-white">
       <span class="inline-flex items-center gap-2 font-medium">
         <Icon name="pause" :size="16" />
         Semua proses sedang dihentikan — tidak ada data yang ditulis.
@@ -76,7 +78,7 @@ function changePassword() {
 
     <div class="flex">
       <!-- Sidebar (desktop) -->
-      <aside class="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-ink-200 bg-white lg:flex">
+      <aside class="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-ink-200 bg-surface lg:flex">
         <Link href="/" class="flex h-[4.5rem] items-center gap-3 px-6">
           <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-white shadow-sm">
             <Icon name="flow" :size="20" />
@@ -119,7 +121,7 @@ function changePassword() {
 
       <!-- Konten -->
       <div class="flex min-w-0 flex-1 flex-col">
-        <header class="sticky top-0 z-30 border-b border-ink-200 bg-white/90 backdrop-blur">
+        <header class="sticky top-0 z-30 border-b border-ink-200 bg-surface/90 backdrop-blur">
           <div class="flex h-16 items-center gap-3 px-4 sm:px-6 lg:px-10">
             <button
               type="button"
@@ -157,11 +159,28 @@ function changePassword() {
               <div v-if="profileOpen" class="fixed inset-0 z-40" @click="profileOpen = false"></div>
               <div
                 v-if="profileOpen"
-                class="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-xl"
+                class="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-2xl border border-ink-200 bg-surface shadow-xl"
               >
                 <div class="border-b border-ink-100 px-4 py-3">
                   <p class="truncate text-sm font-semibold text-ink-900">{{ userName }}</p>
                   <p class="truncate text-xs text-ink-500">{{ userEmail }}</p>
+                </div>
+                <div class="border-b border-ink-100 px-4 py-3">
+                  <p class="text-xs font-medium text-ink-500">Tampilan</p>
+                  <div class="mt-2 grid grid-cols-3 gap-1 rounded-xl bg-ink-100 p-1" role="radiogroup" aria-label="Tema tampilan">
+                    <button
+                      v-for="opt in [{ v: 'light', l: 'Terang' }, { v: 'dark', l: 'Gelap' }, { v: 'system', l: 'Otomatis' }]"
+                      :key="opt.v"
+                      type="button"
+                      role="radio"
+                      :aria-checked="themePreference === opt.v"
+                      class="rounded-lg px-2 py-1 text-xs font-medium transition"
+                      :class="themePreference === opt.v ? 'bg-surface text-ink-900 shadow-sm' : 'text-ink-600 hover:text-ink-900'"
+                      @click="setTheme(opt.v)"
+                    >
+                      {{ opt.l }}
+                    </button>
+                  </div>
                 </div>
                 <button type="button" class="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-ink-700 hover:bg-ink-50" @click="openPassword">
                   <Icon name="lock" /> Ganti password
@@ -174,7 +193,7 @@ function changePassword() {
           </div>
 
           <!-- Nav mobile -->
-          <nav v-if="mobileOpen" class="space-y-1 border-t border-ink-200 bg-white p-3 lg:hidden" aria-label="Menu utama">
+          <nav v-if="mobileOpen" class="space-y-1 border-t border-ink-200 bg-surface p-3 lg:hidden" aria-label="Menu utama">
             <Link
               v-for="link in links"
               :key="link.href"
