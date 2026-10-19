@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { Link, router, usePage } from '@inertiajs/vue3'
+import { Link, router, useForm, usePage } from '@inertiajs/vue3'
 import PauseButton from '../Components/PauseButton.vue'
 
 const page = usePage()
@@ -34,6 +34,21 @@ const isActive = (href) =>
 
 function logout() {
   router.post('/logout')
+}
+
+const passwordOpen = ref(false)
+const password = useForm({
+  current_password: '', password: '', password_confirmation: '',
+})
+
+function changePassword() {
+  password.post('/profile/password', {
+    preserveScroll: true,
+    onSuccess: () => {
+      password.reset()
+      passwordOpen.value = false
+    },
+  })
 }
 </script>
 
@@ -100,9 +115,72 @@ function logout() {
                 <p class="text-[13px] font-medium leading-tight text-ink-800">{{ userName }}</p>
                 <p class="text-[11px] leading-tight text-ink-400">{{ userRole }}</p>
               </div>
+              <button type="button" class="btn-secondary btn-sm" @click="passwordOpen = !passwordOpen">Ganti sandi</button>
               <button type="button" class="btn-secondary btn-sm" @click="logout">Keluar</button>
             </div>
           </div>
+
+          <!-- Ganti password (B6) -->
+          <form
+            v-if="passwordOpen"
+            class="border-t border-ink-200 bg-ink-50 px-4 py-4 sm:px-6"
+            @submit.prevent="changePassword"
+          >
+            <p class="text-sm font-semibold text-ink-900">Ganti password</p>
+            <p class="mt-0.5 text-xs text-ink-500">
+              Sesi lain otomatis dikeluarkan. Sesi tab ini tetap aktif.
+            </p>
+
+            <div class="mt-3 grid gap-3 sm:grid-cols-3">
+              <label class="block">
+                <span class="eyebrow">Password lama</span>
+                <input
+                  v-model="password.current_password"
+                  type="password"
+                  required
+                  autocomplete="current-password"
+                  class="input-sm mt-1.5"
+                >
+                <span v-if="password.errors.current_password" class="hint text-red-600">
+                  {{ password.errors.current_password }}
+                </span>
+              </label>
+
+              <label class="block">
+                <span class="eyebrow">Password baru</span>
+                <input
+                  v-model="password.password"
+                  type="password"
+                  required
+                  minlength="12"
+                  autocomplete="new-password"
+                  class="input-sm mt-1.5"
+                >
+                <span class="hint">Minimal 12 karakter.</span>
+                <span v-if="password.errors.password" class="hint text-red-600">
+                  {{ password.errors.password }}
+                </span>
+              </label>
+
+              <label class="block">
+                <span class="eyebrow">Ulangi password baru</span>
+                <input
+                  v-model="password.password_confirmation"
+                  type="password"
+                  required
+                  autocomplete="new-password"
+                  class="input-sm mt-1.5"
+                >
+              </label>
+            </div>
+
+            <div class="mt-3 flex items-center gap-2">
+              <button type="submit" class="btn-primary btn-sm" :disabled="password.processing">
+                {{ password.processing ? 'Menyimpan…' : 'Simpan password' }}
+              </button>
+              <button type="button" class="btn-ghost btn-sm" @click="passwordOpen = false">Batal</button>
+            </div>
+          </form>
 
           <!-- Nav mobile -->
           <nav v-if="mobileOpen" class="space-y-1 border-t border-ink-200 p-3 lg:hidden">

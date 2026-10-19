@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use App\Models\ApiToken;
+use App\Services\Api\ApiTokenLookup;
 use App\Support\TrustedProxy;
 use Closure;
 use Illuminate\Http\Request;
@@ -17,16 +18,15 @@ class AuthenticateApiToken
 {
     public function handle(Request $request, Closure $next): Response
     {
-        $plain = $this->extractToken($request);
-
-        if ($plain === null) {
-            return $this->unauthorized('Token tidak ditemukan. Kirim header: Authorization: Bearer <token>.');
-        }
-
-        $token = ApiToken::findByPlainToken($plain);
+        // Satu-satunya lookup untuk seluruh siklus request ini.
+        $token = ApiTokenLookup::for($request);
 
         if ($token === null) {
-            return $this->unauthorized('Token tidak dikenal.');
+            return $this->unauthorized(
+                ApiTokenLookup::plainFrom($request) === null
+                    ? 'Token tidak ditemukan. Kirim header: Authorization: Bearer <token>.'
+                    : 'Token tidak dikenal.'
+            );
         }
 
         if (! $token->isActive()) {
@@ -99,23 +99,6 @@ class AuthenticateApiToken
         }
 
         return null;
-    }
-
-    private function extractToken(Request $request): ?string
-    {
-        $header = (string) $request->header('Authorization', '');
-
-        if (str_starts_with($header, 'Bearer ')) {
-            $value = trim(substr($header, 7));
-
-            return $value === '' ? null : $value;
-        }
-
-        // Beberapa klien (mis. integrasi di dalam intranet) hanya bisa
-        // mengirim header kustom.
-        $alt = $request->header('X-Api-Token');
-
-        return is_string($alt) && $alt !== '' ? $alt : null;
     }
 
     private function unauthorized(string $message): Response

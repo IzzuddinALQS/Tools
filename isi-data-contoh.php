@@ -19,6 +19,19 @@ use App\Models\User;
  *     require base_path('isi-data-contoh.php');
  */
 
+/*
+ * Isi file ini memuat password admin yang sudah diketahui, jadi tidak boleh
+ * jalan di produksi. Selain itu, isinya menimpa data driver dan dataset yang
+ * mungkin sedang dipakai sungguhan.
+ */
+if (app()->environment('production')) {
+    fwrite(STDERR, PHP_EOL);
+    fwrite(STDERR, 'DITOLAK: data contoh tidak boleh dipasang di APP_ENV=production.'.PHP_EOL);
+    fwrite(STDERR, 'Skrip ini menimpa koneksi, target, dataset, dan menerbitkan token.'.PHP_EOL.PHP_EOL);
+
+    return;
+}
+
 $email = 'admin@ods.local';
 $password = 'ods12345';
 $name = 'Admin Oracle Data Sync';

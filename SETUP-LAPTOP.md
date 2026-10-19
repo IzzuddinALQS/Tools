@@ -309,9 +309,46 @@ php artisan key:generate
 php artisan migrate
 'require base_path("isi-data-contoh.php");' | php artisan tinker
 
+# 5. database + data awal
+php artisan migrate
+'require base_path("isi-data-contoh.php");' | php artisan tinker
+
 # 6. build + jalankan
 npm run build
-composer serve
+composer dev
 ```
 
 Detail tiap bagian ada di bagian atas dokumen ini.
+
+## Setelah laptop siap
+
+Scheduler dan worker wajib berjalan kalau mau memakai API Tahap 2:
+
+```bash
+* * * * * cd /var/www/oracle-data-sync && php artisan schedule:run >> /dev/null 2>&1
+php artisan queue:work --queue=sync --tries=1 --timeout=3600
+```
+
+`composer dev` sudah menjalankan worker-nya untuk pengembangan. Di server, dua
+perintah di atas dijalankan lewat supervisor.
+
+Tanda worker hidup bisa dicek:
+
+```bash
+php artisan ods:queue-heartbeat
+php artisan schedule:list
+```
+
+Kalau heartbeat basi, endpoint API membalas `503` alih-alih membalas `202`
+yang tidak akan pernah dikerjakan.
+
+## Ganti password admin
+
+Password bawaan `ods12345` **wajib diganti sebelum dipakai sungguhan**:
+
+1. Masuk ke panel dengan akun itu.
+2. Klik **Ganti sandi** di header.
+3. Isi password lama, lalu minimal 12 karakter untuk yang baru.
+
+Sesi lain langsung dikeluarkan. Panel adalah satu-satunya tempat untuk
+mengaturnya.

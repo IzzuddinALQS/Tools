@@ -903,6 +903,22 @@ Terbitkan dan cabut token API Tahap 2 dari terminal. Nilai token hanya
 ditampilkan sekali. Penjelasan lengkap ada di
 [API Tahap 2](#api-tahap-2-minta-sinkronisasi).
 
+### `ods:queue-heartbeat`
+
+```bash
+php artisan ods:queue-heartbeat
+```
+
+Menandai bahwa worker antrean hidup. Endpoint API membalas `503` kalau tanda ini
+sudah basi, karena job yang dijadwalkan tidak akan pernah dikerjakan. Perintah
+ini sudah dijadwalkan otomatis setiap menit — jalankan manual hanya untuk
+memeriksa.
+
+### Ganti password admin
+
+Lewat panel: klik **Ganti sandi** di header. Password lama wajib diisi, minimal
+12 karakter untuk yang baru, dan seluruh sesi lain langsung dikeluarkan.
+
 ---
 
 ## Aturan "Sama Persis"
@@ -1234,6 +1250,29 @@ curl -X POST \
   -H "Authorization: Bearer $ODS_TOKEN" \
   -H "Accept: application/json"
 ```
+
+### Cara membaca jawabannya
+
+Tidak selalu 202. Endpoint ini sengaja membedakan beberapa kondisi supaya
+pemanggil tidak salah misled:
+
+| Status HTTP | `status` | Arti |
+| --- | --- | --- |
+| `202` | `queued` | Job masuk antrean, akan dikerjakan worker |
+| `200` | `skipped` | **Sudah ada** sinkronisasi yang sedang berjalan. Permintaan sudah terpenuhi, tidak perlu mengulang |
+| `409` | `paused` | Kill switch aktif, tidak ada penulisan sama sekali |
+| `409` | `skipped` | Dataset sedang dijeda |
+| `409` | (tanpa `status`) | Token tidak berwenang, atau IP tidak bisa dipastikan |
+| `503` | `worker_unavailable` | Tidak ada worker antrean. Job **tidak** dijadwalkan |
+| `429` | — | Melebihi batas laju |
+
+Jadi aplikasi bisa membedakan "baru dijalankan" dari "sudah ada yang jalan",
+dan tahu kalau permintaannya tidak dijadwalkan sama sekali.
+
+> **Status `503` muncul kalau tanda denyut worker sudah basi. Kalau tanda
+> denyut belum pernah ada** — misalnya instalasi yang tidak mengaktifkan
+> scheduler — endpoint tetap membalas `202` seperti biasa, karena statusnya
+> belum diketahui.
 
 ---
 

@@ -17,19 +17,20 @@ kriteria terima.
 | B3 | Token plaintext tersimpan di tabel `sessions` | Tinggi | **Selesai** |
 | B4 | `TrustProxies` tak dikonfigurasi, `allowed_ips` salah baca | Tinggi | **Selesai** |
 | B5 | Login tanpa throttle | Sedang | **Selesai** |
-| B6 | Tidak ada cara ganti password | Sedang | Belum |
+| B6 | Tidak ada cara ganti password | Sedang | **Selesai** |
 | D1 | `.env.example` masih default Laravel | Sedang | **Selesai** |
 | D2 | Klaim README soal penyimpanan token kurang tepat | Rendah | **Selesai** |
-| U1 | API tak bisa membedakan "sedang berjalan" | Rendah | Belum |
-| U2 | Dua lookup token per panggilan API | Rendah | Belum |
-| U3 | API balas 202 tanpa ada queue worker | Sedang | Belum |
-| U4 | Job gagal sebelum ada baris `runs` tak terlihat | Sedang | Belum |
-| U5 | Skrip dev tanpa guard `APP_ENV` | Sedang | Belum |
-| U6 | Rantai sync → copy dari pemicu API belum diuji | Rendah | Belum |
+| U1 | API tak bisa membedakan "sedang berjalan" | Rendah | **Selesai** |
+| U2 | Dua lookup token per panggilan API | Rendah | **Selesai** |
+| U3 | API balas 202 tanpa ada queue worker | Sedang | **Selesai** |
+| U4 | Job gagal sebelum ada baris `runs` tak terlihat | Sedang | **Selesai** |
+| U5 | Skrip dev tanpa guard `APP_ENV` | Sedang | **Selesai** |
+| U6 | Rantai sync → copy dari pemicu API belum diuji | Rendah | **Selesai** |
+
+**Semua butir pada audit ini sudah selesai.**
 
 Urutan tackling yang disarankan: **B1 → B3 → B5 → B2 → B4**.
-Enam pertama sudah selesai (B1, B2, B3, B4, B5, D1, D2). Tersisa:
-**B6, U1–U6**.
+Semua butir sudah selesai (B1–B6, D1–D2, U1–U6).
 
 > **B1 sudah tuntas.** Nilai `SYNC_LOCK_STORE` dibaca kode, dan `.env.example`
 > sekarang memuatnya beserta penjelasan kapan Redis wajib — jadi instalasi baru
@@ -519,64 +520,102 @@ tidak terduga saat pindah mesin.
 
 ---
 
-## Belum dikerjakan
+## Yang dulu belum dikerjakan, sekarang selesai
 
-### U1 — API tak bisa membedakan "sedang berjalan"
+Tidak ada butir yang tertinggal. Yang berikut adalah ringkasan cara setiap
+butir ditutup beserta test yang menjaganya.
 
-`POST /refresh` selalu membalas `202` selama dataset aktif dan kill switch
-mati, tanpa memberi tahu apakah sinkronisasi sedang berjalan. Aplikasi tidak
-bisa membedakan "baru dijalankan" dari "sudah ada yang jalan".
+### U1 — API tak bisa membedakan "sedang berjalan" · **SELESAI**
 
-Batasnya disengaja dan sudah dikomentari di controller: satu-satunya cara
-memeriksa cache lock tanpa mengambilnya adalah dengan mengambilnya. Kalau
-dibutuhkan, jalurnya baca kolom `runs` (`status = running`) dengan batas waktu
-supaya run yang yatim tidak bikin status nyangkut.
+Sumbernya tabel `runs`, bukan cache lock — cache lock tidak bisa diperiksa
+tanpa mengambilnya, dan mengambilnya justru akan mengunci dataset yang sedang
+bebas.
 
-### U2 — Dua lookup token per panggilan API
+```php
+public static function isDatasetRunning(Dataset $dataset): bool
+{
+    $window = max(60, (int) $dataset->timeout_seconds) + 300;
 
-`throttle:api.token` dan `api.token` sama-sama memanggil
-`ApiToken::findByPlainToken()`, ditambah `markUsed()` menulis di setiap
-panggilan. Ketiganya kena `CACHE_STORE=database`.
+    return $dataset->runs()
+        ->where('status', RunStatusEnum::Running)
+        ->where('started_at', '>=', now()->subSeconds($window))
+        ->exists();
+}
+```
 
-Dengan batas bawaan 10/menit ini masih wajar, tapi borosannya mudah dihilangkan:
-cari token sekali per request lalu simpan di atribut request.
+Batas waktunya penting: tanpa itu, run yang yatim — worker mati mendadak
+sehingga `finished_at` tak pernah terisi — akan membuat dataset terlihat
+"sedang berjalan" selamanya.
 
-### U3 — API balas 202 walau tidak ada queue worker
+Endpoint kini membalas `200` dengan `status: skipped` kalau sedang berjalan.
+`200`, bukan `409`, karena permintaannya sebenarnya sudah terpenuhi oleh proses
+yang sedang jalan.
 
-Job masuk antrean `jobs` dan menggantung selamanya, sementara aplikasi sudah
-diberi tahu "Sinkronisasi dijadwalkan". Tidak ada pemeriksaan apakah worker hidup.
+Test: `test_dataset_terdeteksi_sedang_berjalan`, `test_run_yatim_tidak_menahan_dataset_selamanya`,
+`test_run_yang_sudah_selesai_tidak_terhitung_berjalan`,
+`test_menyatakan_sedang_berjalan_dari_tabel_runs`.
 
-Ide perbaikan: heartbeat worker di tabel `settings`, atau beri batas waktu tunggu
-singkat sebelum membalas 202.
+### U2 — Dua lookup token per panggilan API · **SELESAI**
 
-### U4 — Job gagal sebelum ada baris `runs` tak terlihat
+`App\Services\Api\ApiTokenLookup` meng-cache hasil pencarian di atribut request,
+sehingga rate limiter dan middleware memakai satu query yang sama.
 
-`SyncDatasetJob` memakai `public int $tries = 1`. Kalau job mati sebelum
-`SyncRunner::startRun()` sempat membuat baris `runs` (OOM, timeout, kill), tidak
-ada jejak di halaman Riwayat — hanya di `queue:failed`, dan tidak ada monitoring
-yang menyuruh orang melihat ke sana.
+`markUsed()` juga tidak lagi menulis setiap panggilan — paling sering sekali
+per menit, karena presisi detik tidak relevan untuk kolom "terakhir dipakai".
 
-### U5 — Skrip dev tanpa guard `APP_ENV`
+### U3 — API balas 202 tanpa ada queue worker · **SELESAI**
 
-`buat-akun.php` dan `isi-data-contoh.php` ada di root repo tanpa pemeriksaan
-environment. Siapa pun dengan shell di server produksi bisa menjalankan
-`buat-akun.php` dan membuat akun admin dengan password yang diketahui.
+Ditambah tanda denyut: `php artisan ods:queue-heartbeat`, dijadwalkan setiap
+menit. Disimpan di tabel `settings` — bukan cache — supaya konsisten antar
+worker dan bertahan setelah restart.
 
-Keduanya perlu menolak jalan kalau `APP_ENV=production`.
+Endpoint sekarang membalas `503` dengan `status: worker_unavailable` kalau
+heartbeat-nya basi, beserta perintah yang harus dijalankan. Job tidak lagi
+menggantung diam-diam.
 
-### U6 — Rantai sync → copy dari pemicu API belum diuji end-to-end
+Kalau heartbeat **belum pernah ada** (`known: false`), statusnya dianggap
+"netral", bukan "mati" — supaya instalasi yang tidak mengaktifkan scheduler
+tidak ikut ditolak.
 
-`SyncDatasetJob` meneruskan ke `CopyTableJob` untuk setiap target di
-`auto_copy_to`. `ApiRefreshTest` hanya memastikan job-nya terkirim, belum
-memastikan rantai copy-nya benar-benar jalan dari pemicu API.
+Test: `test_heartbeat_segera_dinyatakan_hidup`, `test_heartbeat_basi_dinyatakan_mati`,
+`test_heartbeat_rusak_tidak_membikin_panik`, `test_menolak_dengan_503_saat_worker_mati`,
+`test_heartbeat_segar_mengizinkan_penjadwalan`.
+
+### U4 — Job gagal sebelum ada baris `runs` tak terlihat · **SELESAI**
+
+`SyncDatasetJob::handle()` dibungkus try/catch. Kegagalan di luar
+`SyncRunner` sekarang selalu meninggalkan baris `runs` berstatus `failed`,
+supaya terlihat di halaman Riwayat. Ditambah `failed()` untuk mencatat ke log
+saat job mati permanen.
+
+> Bug yang ketemu saat mengerjakan ini: `recordUncaughtFailure()` sempat
+> memakai variabel `$runner` yang tidak ada di parameternya. Error-nya
+> tertangkap `catch` di dalamnya sendiri, jadi pemanggilnya mengira pencatatan
+> berhasil padahal tidak ada yang tercatat. Persis kelas bug yang item ini
+> tuju: gagal tanpa error yang terlihat. Itu sebabnya testnya harus
+> behavioral, bukan sekadar mencocokkan string.
+
+### U5 — Skrip dev tanpa guard `APP_ENV` · **SELESAI**
+
+`buat-akun.php` dan `isi-data-contoh.php` menolak jalan saat
+`APP_ENV=production`, dicek **sebelum** ada yang ditulis ke database. Pesan
+penolakan ditulis ke STDERR supaya terlihat di terminal.
+
+Testnya behavioral, bukan cuma mencocokkan string: skrip benar-benar
+dijalankan dalam environment produksi lalu diperiksa tidak ada akun, koneksi,
+target, dataset, atau token yang tercipta.
+
+### U6 — Rantai sync → copy dari pemicu API belum diuji · **SELESAI**
+
+Ditambah test end-to-end: job yang dipicu dengan `auto_copy_to` benar-benar
+menjalankan sync lalu menyalin ke PG B, dan isi PG B dibandingkan isi PG A
+baris per baris.
 
 ---
-
 ## Catatan umum
 
 - Jumlah test saat audit: **230 lulus / 591 assertion**. Tidak ada regresi.
 - Semua temuan di atas diverifikasi terhadap baseline `3889be1` plus koreksi
   dokumentasi `e284619`.
-- Tidak satu pun butir di dokumen ini sudah dikerjakan, kecuali koreksi teks
-  pada D2. Kriteria terima di setiap bagian dimaksudkan supaya bisa langsung
-  dijadikan checklist saat tackling.
+- Seluruh butir di dokumen ini sudah dikerjakan, masing-masing dengan test
+  yang menjaganya.

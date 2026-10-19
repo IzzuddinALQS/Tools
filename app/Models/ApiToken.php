@@ -93,10 +93,24 @@ class ApiToken extends Model
             ->first();
     }
 
+    /**
+     * Tandai token sebagai baru dipakai.
+     *
+     * Menulis setiap panggilan boros: dengan batas laju bawaan 10 per menit,
+     * itu 10 write ke database per menit per token tanpa menambah informasi
+     * apa pun. Jadi tulis paling sering sekali per menit — untuk keperluan
+     * "terakhir dipakai" di panel, presisi detik memang tidak relevan.
+     */
     public function markUsed(): void
-    {
-        $this->forceFill(['last_used_at' => Carbon::now()])->save();
+{
+    $now = Carbon::now();
+
+    if ($this->last_used_at !== null && $this->last_used_at->gt($now->subMinute())) {
+        return;
     }
+
+    $this->forceFill(['last_used_at' => $now])->save();
+}
 
     public function revoke(?string $reason = null): void
     {

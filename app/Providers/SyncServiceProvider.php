@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\ApiToken;
+use App\Services\Api\ApiTokenLookup;
 use App\Services\Guard\DatasetLock;
 use App\Services\Sync\TableWriterFactory;
 use Illuminate\Cache\RateLimiting\Limit;
@@ -39,10 +40,11 @@ class SyncServiceProvider extends ServiceProvider
          * aplikasi di IP yang sama tidak saling menghabiskan kuota.
          */
         RateLimiter::for('api.token', function (Request $request) {
-            $header = (string) $request->header('Authorization', '');
-            $plain = str_starts_with($header, 'Bearer ') ? trim(substr($header, 7)) : '';
-
-            $token = $plain === '' ? null : ApiToken::findByPlainToken($plain);
+            /*
+             * Pakhe cache per request yang sama dengan middleware token, jadi
+             * kuota dihitung tanpa query kedua ke api_tokens.
+             */
+            $token = ApiTokenLookup::for($request);
 
             return Limit::perMinute($token?->rate_limit_per_minute ?? 10)
                 ->by($token?->uid ?? 'ip:'.$request->ip())

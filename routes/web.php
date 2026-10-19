@@ -8,6 +8,7 @@ use App\Http\Controllers\DriverController;
 use App\Http\Controllers\HistoryController;
 use App\Http\Controllers\LoginController;
 use App\Http\Controllers\PauseController;
+use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -40,6 +41,8 @@ Route::middleware('auth')->group(function (): void {
 
     Route::get('/copy', [CopyController::class, 'index'])->name('copy.index');
     Route::post('/copy', [CopyController::class, 'store'])->name('copy.store');
+
+    Route::post('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
 
     Route::post('/datasets/preview', [DatasetController::class, 'preview'])->name('datasets.preview');
 

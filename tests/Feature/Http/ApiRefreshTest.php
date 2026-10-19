@@ -97,6 +97,74 @@ class ApiRefreshTest extends SyncTestCase
             ->assertJsonPath('message', 'Token sudah dicabut.');
     }
 
+    public function test_menyatakan_sedang_berjalan_dari_tabel_runs(): void
+    {
+        /*
+         * U1: dulu endpoint selalu 202, jadi aplikasi tidak bisa membedakan
+         * "baru dijalankan" dari "sudah ada yang jalan".
+         */
+        Queue::fake();
+
+        $dataset = $this->dataset();
+        [, $plain] = $this->issueToken($dataset);
+
+        $dataset->runs()->create([
+            'connection_id' => $dataset->connection_id,
+            'target_id' => $dataset->target_id,
+            'kind' => \App\Enums\RunKindEnum::Sync,
+            'trigger' => \App\Enums\RunTriggerEnum::Schedule,
+            'status' => \App\Enums\RunStatusEnum::Running,
+            'sql_text' => $dataset->sql,
+            'started_at' => now(),
+        ]);
+
+        $this->withHeader('Authorization', 'Bearer '.$plain)
+            ->postJson($this->url($dataset))
+            ->assertOk()
+            ->assertJsonPath('status', 'skipped')
+            ->assertJsonPath('message', 'Sinkronisasi sedang berjalan.');
+
+        Queue::assertNothingPushed();
+    }
+
+    public function test_menolak_dengan_503_saat_worker_mati(): void
+    {
+        Queue::fake();
+
+        $dataset = $this->dataset();
+        [, $plain] = $this->issueToken($dataset);
+
+        // Heartbeat ada tapi sudah basi: worker-nya mati.
+        \App\Models\Setting::put(\App\Services\Api\RuntimeStatus::WORKER_HEARTBEAT, [
+            'at' => now()
+                ->subSeconds(\App\Services\Api\RuntimeStatus::HEARTBEAT_STALE_AFTER + 60)
+                ->toIso8601String(),
+        ]);
+
+        $this->withHeader('Authorization', 'Bearer '.$plain)
+            ->postJson($this->url($dataset))
+            ->assertStatus(503)
+            ->assertJsonPath('status', 'worker_unavailable');
+
+        Queue::assertNothingPushed();
+    }
+
+    public function test_heartbeat_segar_mengizinkan_penjadwalan(): void
+    {
+        Queue::fake();
+
+        $dataset = $this->dataset();
+        [, $plain] = $this->issueToken($dataset);
+
+        \App\Services\Api\RuntimeStatus::recordHeartbeat('sync');
+
+        $this->withHeader('Authorization', 'Bearer '.$plain)
+            ->postJson($this->url($dataset))
+            ->assertAccepted();
+
+        Queue::assertPushed(\App\Jobs\SyncDatasetJob::class);
+    }
+
     public function test_token_tidak_boleh_memicu_dataset_lain(): void
     {
         Queue::fake();

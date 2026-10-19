@@ -45,3 +45,15 @@ Schedule::call(function (): void {
 Schedule::command('oracle-sync:reconcile')
     ->cron((string) config('oracle-sync.defaults.reconcile_cron', '0 2 * * *'))
     ->name('reconcile-full');
+
+/*
+ * Tanda bahwa worker antrean hidup.
+ *
+ * Endpoint API menolak dengan 503 kalau tanda ini basi, karena job yang
+ * dijadwalkan tidak akan pernah dikerjakan. Tanpa ini, pemanggil hanya bisa
+ * mendapat 202 lalu tidak ada yang terjadi.
+ */
+Schedule::command('ods:queue-heartbeat', ['--queue' => 'sync'])
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->name('queue-worker-heartbeat');

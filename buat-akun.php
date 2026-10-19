@@ -13,6 +13,20 @@ use App\Models\User;
  * Ganti EMAIL dan PASSWORD di bawah sesuai keinginan.
  */
 
+/*
+ * Jaga: skrip ini membuat admin dengan password yang tertulis di berkas ini.
+ * Kalau bocor ke server produksi, siapa pun yang bisa shell sudah punya akses
+ * penuh ke panel dan ke semua token API. Jadi refuse to run di produksi.
+ */
+if (app()->environment('production')) {
+    fwrite(STDERR, PHP_EOL);
+    fwrite(STDERR, 'DITOLAK: skrip ini tidak boleh jalan di APP_ENV=production.'.PHP_EOL);
+    fwrite(STDERR, 'Buat akun admin lewat migration atau query SQL langsung di server.'.PHP_EOL);
+    fwrite(STDERR, 'Password di berkas ini sudah diketahui, jadi file ini tidak boleh bocor.'.PHP_EOL.PHP_EOL);
+
+    return;
+}
+
 $email = 'admin@ods.local';
 $password = 'ods12345';
 $name = 'Admin Oracle Data Sync';

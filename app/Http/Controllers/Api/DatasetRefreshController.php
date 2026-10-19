@@ -8,6 +8,7 @@ use App\Jobs\SyncDatasetJob;
 use App\Models\ApiToken;
 use App\Models\Dataset;
 use App\Models\Target;
+use App\Services\Api\RuntimeStatus;
 use App\Services\Guard\KillSwitch;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -77,19 +78,45 @@ class DatasetRefreshController
         }
 
         /*
-         * Tidak ada pengecekan "sedang berjalan" di sini, dan itu disengaja.
+         * Sudah ada sinkronisasi yang berjalan?
          *
-         * Pengecekan lock dari sisi HTTP tidak mungkin dilakukan dengan benar:
-         * satu-satunya cara memeriksa cache lock tanpa mengambilnya adalah
-         * memanggil get(), yang justru mengambil lock itu. Pengecek seperti itu
-         * akan selalu menjawab "sedang berjalan" sekaligus mengunci dataset
-         * yang sebenarnya bebas.
+         * Diperiksa lewat tabel runs, bukan cache lock — cache lock tidak bisa
+         * dicek tanpa mengambilnya, dan mengambilnya justru akan mengunci
+         * dataset yang sedang bebas.
          *
-         * Dedup-nya sudah ditangani di tempat yang benar: SyncDatasetJob
-         * memakai WithoutOverlapping(...)->dontRelease(). Jadi dua permintaan
-         * refresh beruntun tetap menghasilkan paling banyak satu sinkronisasi,
-         * dan 202 di bawah tetap jujur karena job-nya memang sudah diantrekan.
+         * 200 (bukan 409), karena permintaan sebenarnya sudah terpenuhi oleh
+         * proses yang sedang berjalan.
          */
+        if (RuntimeStatus::isDatasetRunning($datasetModel)) {
+            return response()->json([
+                'message' => 'Sinkronisasi sedang berjalan.',
+                'status' => 'skipped',
+                'dataset' => $datasetModel->name,
+                'last_success_at' => $datasetModel->last_success_at?->toIso8601String(),
+            ], 200);
+        }
+
+        /*
+         * Worker-nya hidup?
+         *
+         * Tanpa ini, 202 di bawah berbohong: job-nya akan menggantung di
+         * tabel jobs selamanya sementara pemanggil sudah diberi tahu
+         * "dijadwalkan". `known: false` berarti belum pernah ada heartbeat,
+         * jadi statusnya tidak boleh diasumsikan mati.
+         */
+        $worker = RuntimeStatus::workerStatus();
+
+        if ($worker['known'] && ! $worker['alive']) {
+            return response()->json([
+                'message' => 'Tidak ada worker antrean yang aktif. Permintaan tidak jadi dijadwalkan. Jalankan: php artisan queue:work --queue=sync',
+                'status' => 'worker_unavailable',
+                'last_heartbeat' => $worker['at'],
+                'last_heartbeat_age_seconds' => $worker['age'],
+            ], 503);
+        }
+
+        $token->markUsed();
+
         SyncDatasetJob::dispatch(
             $datasetModel->id,
             RunTriggerEnum::Api->value,
