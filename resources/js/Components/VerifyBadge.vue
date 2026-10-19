@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import { formatNumber } from '../lib/terms.js'
 
 const props = defineProps({
   matched: { type: [Boolean, null], default: null },
@@ -9,22 +10,21 @@ const props = defineProps({
 
 const state = computed(() => {
   if (props.matched === null || props.matched === undefined) {
-    return { cls: 'badge-neutral', mark: '—', text: 'tidak diperiksa' }
+    return { cls: 'badge-neutral', mark: '–', text: 'Belum diperiksa', short: 'Belum diperiksa' }
   }
 
   return props.matched
-    ? { cls: 'badge-success', mark: '✓', text: 'Hash identik' }
-    : { cls: 'badge-danger', mark: '✗', text: 'Hash berbeda' }
+    ? { cls: 'badge-success', mark: '✓', text: 'Data cocok', short: 'Cocok' }
+    : { cls: 'badge-danger', mark: '✗', text: 'Data tidak cocok', short: 'Tidak cocok' }
 })
 
 const rows = computed(() => props.detail?.source?.row_count ?? props.detail?.target?.row_count ?? null)
-const title = computed(() => props.detail ? JSON.stringify(props.detail, null, 2) : 'Tidak ada detail verifikasi.')
 </script>
 
 <template>
-  <span :class="state.cls" :title="title">
-    <span class="font-semibold">{{ state.mark }}</span>
-    <span v-if="!compact">{{ state.text }}</span>
-    <span v-if="rows !== null && !compact" class="opacity-70">· {{ rows }} baris</span>
+  <span :class="state.cls">
+    <span class="font-bold" aria-hidden="true">{{ state.mark }}</span>
+    {{ compact ? state.short : state.text }}
+    <span v-if="rows !== null && !compact" class="opacity-75">· {{ formatNumber(rows) }} baris</span>
   </span>
 </template>

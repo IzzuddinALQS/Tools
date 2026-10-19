@@ -2,31 +2,37 @@
 import { computed, ref, watch } from 'vue'
 import { Link, router, useForm, usePage } from '@inertiajs/vue3'
 import PauseButton from '../Components/PauseButton.vue'
+import Icon from '../Components/Icon.vue'
+import Modal from '../Components/Modal.vue'
+import Field from '../Components/Field.vue'
+import Toasts from '../Components/Toasts.vue'
+import ConfirmDialog from '../Components/ConfirmDialog.vue'
 
 const page = usePage()
 
 const paused = computed(() => Boolean(page.props.pause?.paused))
 const isAdmin = computed(() => page.props.auth?.is_admin === true)
 const userName = computed(() => page.props.auth?.name ?? '')
-const userRole = computed(() => page.props.auth?.is_admin ? 'Admin' : 'Viewer')
+const userEmail = computed(() => page.props.auth?.email ?? '')
+const userRole = computed(() => (page.props.auth?.is_admin ? 'Admin' : 'Pengguna'))
+const initials = computed(() => userName.value.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?')
 
 const mobileOpen = ref(false)
-watch(() => page.url, () => { mobileOpen.value = false })
+const profileOpen = ref(false)
+watch(() => page.url, () => {
+  mobileOpen.value = false
+  profileOpen.value = false
+})
 
 const links = computed(() => {
-  const items = [
-    { href: '/', label: 'Dashboard', icon: 'M3 12l9-9 9 9M5 10v10h14V10' },
-    { href: '/datasets', label: 'Dataset', icon: 'M4 6h16M4 12h16M4 18h10' },
-    { href: '/copy', label: 'Copy A → B', icon: 'M8 7h11m0 0l-3-3m3 3l-3 3M16 17H5m0 0l3 3m-3-3l3-3' },
-    { href: '/history', label: 'Riwayat', icon: 'M12 8v4l3 2m6-2a9 9 0 11-18 0 9 9 0 0118 0z' },
-    { href: '/pause', label: 'Pause', icon: 'M10 9v6m4-6v6' },
+  return [
+    { href: '/', label: 'Beranda', icon: 'home' },
+    // Koneksi hanya untuk admin; urutannya mengikuti alur kerja.
+    ...(isAdmin.value ? [{ href: '/drivers', label: 'Koneksi', icon: 'plug' }] : []),
+    { href: '/datasets', label: 'Dataset', icon: 'table' },
+    { href: '/copy', label: 'Kirim ke Aplikasi', icon: 'send' },
+    { href: '/history', label: 'Riwayat', icon: 'history' },
   ]
-
-  if (isAdmin.value) {
-    items.push({ href: '/drivers', label: 'Driver', icon: 'M4 6h16M4 12h16M4 18h16' })
-  }
-
-  return items
 })
 
 const isActive = (href) =>
@@ -41,6 +47,11 @@ const password = useForm({
   current_password: '', password: '', password_confirmation: '',
 })
 
+function openPassword() {
+  profileOpen.value = false
+  passwordOpen.value = true
+}
+
 function changePassword() {
   password.post('/profile/password', {
     preserveScroll: true,
@@ -53,172 +64,161 @@ function changePassword() {
 </script>
 
 <template>
-  <div class="min-h-screen bg-ink-100">
-    <!-- Kill switch aktif: pita merah di semua halaman -->
-    <div v-if="paused" class="bg-red-600 px-4 py-2 text-center text-[13px] font-medium text-white">
-      Semua job sedang di-PAUSE — tidak ada penulisan ke PostgreSQL A atau B.
+  <div class="min-h-screen bg-ink-50">
+    <!-- Tombol darurat aktif: pita di semua halaman -->
+    <div v-if="paused" class="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 bg-purple-700 px-4 py-2.5 text-center text-sm text-white">
+      <span class="inline-flex items-center gap-2 font-medium">
+        <Icon name="pause" :size="16" />
+        Semua proses sedang dihentikan — tidak ada data yang ditulis.
+      </span>
+      <Link href="/pause" class="font-semibold underline underline-offset-2 hover:no-underline">Lihat detail</Link>
     </div>
 
     <div class="flex">
       <!-- Sidebar (desktop) -->
-      <aside class="hidden w-60 shrink-0 flex-col border-r border-ink-200 bg-white lg:flex">
-        <div class="flex h-16 items-center gap-2.5 border-b border-ink-200 px-5">
-          <span class="inline-block h-2.5 w-2.5 rounded-full bg-emerald-500 ring-4 ring-emerald-500/15"></span>
-          <span class="text-[15px] font-semibold tracking-tight text-ink-900">Oracle Data Sync</span>
-        </div>
+      <aside class="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-ink-200 bg-white lg:flex">
+        <Link href="/" class="flex h-[4.5rem] items-center gap-3 px-6">
+          <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-white shadow-sm">
+            <Icon name="flow" :size="20" />
+          </span>
+          <span class="leading-tight">
+            <span class="block text-[15px] font-bold tracking-tight text-ink-900">Oracle Data Sync</span>
+            <span class="block text-xs text-ink-500">Oracle → PostgreSQL</span>
+          </span>
+        </Link>
 
-        <nav class="flex-1 space-y-1 p-3">
+        <nav class="flex-1 space-y-1 px-3 py-4" aria-label="Menu utama">
           <Link
             v-for="link in links"
             :key="link.href"
             :href="link.href"
-            class="group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition"
+            class="group flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-[15px] font-medium transition"
             :class="isActive(link.href)
-              ? 'bg-ink-900 text-white'
+              ? 'bg-brand-50 text-brand-700'
               : 'text-ink-600 hover:bg-ink-100 hover:text-ink-900'"
+            :aria-current="isActive(link.href) ? 'page' : undefined"
           >
-            <svg class="h-[18px] w-[18px] shrink-0" :class="isActive(link.href) ? 'text-white' : 'text-ink-400 group-hover:text-ink-600'"
-                 fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
-              <path :d="link.icon" />
-            </svg>
+            <span :class="isActive(link.href) ? 'text-brand-600' : 'text-ink-400 group-hover:text-ink-600'">
+              <Icon :name="link.icon" :size="20" />
+            </span>
             {{ link.label }}
           </Link>
         </nav>
 
-        <div class="space-y-3 border-t border-ink-200 p-4">
+        <div class="m-3 space-y-3 rounded-2xl border border-ink-200 bg-ink-50 p-4">
+          <div class="flex items-center gap-2 text-sm">
+            <span class="h-2 w-2 rounded-full" :class="paused ? 'bg-purple-500' : 'bg-emerald-500'"></span>
+            <span class="font-medium text-ink-800">{{ paused ? 'Semua proses dihentikan' : 'Semua proses berjalan' }}</span>
+          </div>
           <PauseButton :paused="paused" full />
+          <Link href="/pause" class="block text-center text-xs font-medium text-ink-500 hover:text-ink-800">
+            Apa fungsi tombol ini?
+          </Link>
         </div>
       </aside>
 
       <!-- Konten -->
       <div class="flex min-w-0 flex-1 flex-col">
-        <!-- Header -->
-        <header class="sticky top-0 z-20 border-b border-ink-200 bg-white/85 backdrop-blur">
-          <div class="flex h-16 items-center gap-4 px-4 lg:px-8">
+        <header class="sticky top-0 z-30 border-b border-ink-200 bg-white/90 backdrop-blur">
+          <div class="flex h-16 items-center gap-3 px-4 sm:px-6 lg:px-10">
             <button
               type="button"
               class="btn-ghost btn-sm lg:hidden"
+              :aria-expanded="mobileOpen"
+              aria-label="Buka menu"
               @click="mobileOpen = !mobileOpen"
             >
-              <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-                <path stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-              Menu
+              <Icon :name="mobileOpen ? 'close' : 'menu'" :size="20" />
             </button>
 
-            <span class="text-[15px] font-semibold tracking-tight text-ink-900 lg:hidden">
-              Oracle Data Sync
-            </span>
+            <Link href="/" class="flex items-center gap-2 lg:hidden">
+              <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-white">
+                <Icon name="flow" :size="18" />
+              </span>
+              <span class="text-[15px] font-bold tracking-tight text-ink-900">Oracle Data Sync</span>
+            </Link>
 
-            <div class="ml-auto flex items-center gap-3">
-              <div class="hidden text-right sm:block">
-                <p class="text-[13px] font-medium leading-tight text-ink-800">{{ userName }}</p>
-                <p class="text-[11px] leading-tight text-ink-400">{{ userRole }}</p>
+            <!-- Menu profil -->
+            <div class="relative ml-auto">
+              <button
+                type="button"
+                class="flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition hover:bg-ink-100"
+                :aria-expanded="profileOpen"
+                @click="profileOpen = !profileOpen"
+              >
+                <span class="flex h-8 w-8 items-center justify-center rounded-full bg-brand-100 text-xs font-bold text-brand-700">{{ initials }}</span>
+                <span class="hidden text-left sm:block">
+                  <span class="block text-sm leading-tight font-semibold text-ink-900">{{ userName }}</span>
+                  <span class="block text-xs leading-tight text-ink-500">{{ userRole }}</span>
+                </span>
+                <span class="text-ink-400"><Icon name="chevron-down" :size="16" /></span>
+              </button>
+
+              <div v-if="profileOpen" class="fixed inset-0 z-40" @click="profileOpen = false"></div>
+              <div
+                v-if="profileOpen"
+                class="absolute right-0 z-50 mt-2 w-64 overflow-hidden rounded-2xl border border-ink-200 bg-white shadow-xl"
+              >
+                <div class="border-b border-ink-100 px-4 py-3">
+                  <p class="truncate text-sm font-semibold text-ink-900">{{ userName }}</p>
+                  <p class="truncate text-xs text-ink-500">{{ userEmail }}</p>
+                </div>
+                <button type="button" class="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-ink-700 hover:bg-ink-50" @click="openPassword">
+                  <Icon name="lock" /> Ganti password
+                </button>
+                <button type="button" class="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-700 hover:bg-red-50" @click="logout">
+                  <Icon name="logout" /> Keluar
+                </button>
               </div>
-              <button type="button" class="btn-secondary btn-sm" @click="passwordOpen = !passwordOpen">Ganti sandi</button>
-              <button type="button" class="btn-secondary btn-sm" @click="logout">Keluar</button>
             </div>
           </div>
 
-          <!-- Ganti password (B6) -->
-          <form
-            v-if="passwordOpen"
-            class="border-t border-ink-200 bg-ink-50 px-4 py-4 sm:px-6"
-            @submit.prevent="changePassword"
-          >
-            <p class="text-sm font-semibold text-ink-900">Ganti password</p>
-            <p class="mt-0.5 text-xs text-ink-500">
-              Sesi lain otomatis dikeluarkan. Sesi tab ini tetap aktif.
-            </p>
-
-            <div class="mt-3 grid gap-3 sm:grid-cols-3">
-              <label class="block">
-                <span class="eyebrow">Password lama</span>
-                <input
-                  v-model="password.current_password"
-                  type="password"
-                  required
-                  autocomplete="current-password"
-                  class="input-sm mt-1.5"
-                >
-                <span v-if="password.errors.current_password" class="hint text-red-600">
-                  {{ password.errors.current_password }}
-                </span>
-              </label>
-
-              <label class="block">
-                <span class="eyebrow">Password baru</span>
-                <input
-                  v-model="password.password"
-                  type="password"
-                  required
-                  minlength="12"
-                  autocomplete="new-password"
-                  class="input-sm mt-1.5"
-                >
-                <span class="hint">Minimal 12 karakter.</span>
-                <span v-if="password.errors.password" class="hint text-red-600">
-                  {{ password.errors.password }}
-                </span>
-              </label>
-
-              <label class="block">
-                <span class="eyebrow">Ulangi password baru</span>
-                <input
-                  v-model="password.password_confirmation"
-                  type="password"
-                  required
-                  autocomplete="new-password"
-                  class="input-sm mt-1.5"
-                >
-              </label>
-            </div>
-
-            <div class="mt-3 flex items-center gap-2">
-              <button type="submit" class="btn-primary btn-sm" :disabled="password.processing">
-                {{ password.processing ? 'Menyimpan…' : 'Simpan password' }}
-              </button>
-              <button type="button" class="btn-ghost btn-sm" @click="passwordOpen = false">Batal</button>
-            </div>
-          </form>
-
           <!-- Nav mobile -->
-          <nav v-if="mobileOpen" class="space-y-1 border-t border-ink-200 p-3 lg:hidden">
+          <nav v-if="mobileOpen" class="space-y-1 border-t border-ink-200 bg-white p-3 lg:hidden" aria-label="Menu utama">
             <Link
               v-for="link in links"
               :key="link.href"
               :href="link.href"
-              class="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium"
-              :class="isActive(link.href) ? 'bg-ink-900 text-white' : 'text-ink-700 hover:bg-ink-100'"
+              class="flex items-center gap-3 rounded-xl px-3.5 py-3 text-[15px] font-medium"
+              :class="isActive(link.href) ? 'bg-brand-50 text-brand-700' : 'text-ink-700 hover:bg-ink-100'"
             >
-              <svg class="h-[18px] w-[18px]" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
-                <path :d="link.icon" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
+              <Icon :name="link.icon" :size="20" />
               {{ link.label }}
             </Link>
+            <div class="border-t border-ink-100 pt-3">
+              <PauseButton :paused="paused" full />
+            </div>
           </nav>
         </header>
 
-        <main class="mx-auto w-full max-w-6xl flex-1 px-4 py-7 lg:px-8">
-          <!-- Flash -->
-          <div
-            v-if="page.props.flash?.success"
-            class="mb-5 flex items-start gap-2.5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800"
-          >
-            <span class="mt-px">✓</span>
-            {{ page.props.flash.success }}
-          </div>
-          <div
-            v-if="page.props.flash?.error"
-            class="mb-5 flex items-start gap-2.5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
-          >
-            <span class="mt-px">!</span>
-            {{ page.props.flash.error }}
-          </div>
-
+        <main class="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 lg:px-10 lg:py-12">
           <slot />
         </main>
       </div>
     </div>
+
+    <!-- Ganti password -->
+    <Modal :open="passwordOpen" title="Ganti password" description="Sesi di perangkat lain otomatis keluar. Sesi di tab ini tetap aktif." size="sm" @close="passwordOpen = false">
+      <form id="password-form" class="space-y-4" @submit.prevent="changePassword">
+        <Field label="Password saat ini" :error="password.errors.current_password">
+          <input v-model="password.current_password" type="password" required autocomplete="current-password" class="input">
+        </Field>
+        <Field label="Password baru" hint="Minimal 12 karakter." :error="password.errors.password">
+          <input v-model="password.password" type="password" required minlength="12" autocomplete="new-password" class="input">
+        </Field>
+        <Field label="Ulangi password baru">
+          <input v-model="password.password_confirmation" type="password" required autocomplete="new-password" class="input">
+        </Field>
+      </form>
+      <template #footer>
+        <button type="button" class="btn-secondary" @click="passwordOpen = false">Batal</button>
+        <button type="submit" form="password-form" class="btn-primary" :disabled="password.processing">
+          {{ password.processing ? 'Menyimpan…' : 'Simpan password' }}
+        </button>
+      </template>
+    </Modal>
+
+    <Toasts />
+    <ConfirmDialog />
   </div>
 </template>

@@ -1,9 +1,16 @@
 <script setup>
 import { computed } from 'vue'
-import { Head, useForm } from '@inertiajs/vue3'
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3'
 import PageHeader from '../Components/PageHeader.vue'
+import StatusBadge from '../Components/StatusBadge.vue'
 import VerifyBadge from '../Components/VerifyBadge.vue'
 import WarningList from '../Components/WarningList.vue'
+import EmptyState from '../Components/EmptyState.vue'
+import Field from '../Components/Field.vue'
+import Term from '../Components/Term.vue'
+import Icon from '../Components/Icon.vue'
+import { confirm } from '../lib/confirm.js'
+import { errorList, formatNumber, timeAgo, verificationState } from '../lib/terms.js'
 
 const props = defineProps({
   datasets: { type: Array, default: () => [] },
@@ -11,107 +18,142 @@ const props = defineProps({
   lastCopies: { type: Array, default: () => [] },
 })
 
+const page = usePage()
+const isAdmin = computed(() => page.props.auth?.is_admin === true)
+
 const form = useForm({ dataset_id: null, target_id: null })
 
+const readyDatasets = computed(() => props.datasets.filter((d) => d.has_data))
+const notReady = computed(() => props.datasets.filter((d) => !d.has_data))
+const selectedDataset = computed(() => props.datasets.find((d) => d.id === Number(form.dataset_id)))
 const selectedTarget = computed(() => props.targets.find((t) => t.id === Number(form.target_id)))
 
-function copyNow() {
-  if (!form.dataset_id || !form.target_id) return
-  form.post('/copy')
+async function copyNow() {
+  if (!selectedDataset.value || !selectedTarget.value) return
+
+  const ok = await confirm({
+    title: `Kirim ke ${selectedTarget.value.app_name}?`,
+    message: `Tabel ${selectedDataset.value.destination} di Database Aplikasi "${selectedTarget.value.name}" akan diganti sehingga isinya sama persis dengan Database Penampung.`,
+    details: [
+      'Isi lama tabel tersebut di Database Aplikasi akan tertimpa.',
+      'Oracle tidak disentuh sama sekali.',
+      'Jika terjadi masalah, kirim ulang kapan saja — Database Penampung tetap utuh.',
+    ],
+    confirmLabel: 'Ya, kirim sekarang',
+  })
+
+  if (ok) form.post('/copy', { preserveScroll: true })
 }
+
+const otherErrors = computed(() => errorList(form.errors, ['dataset_id', 'target_id']))
 </script>
 
 <template>
-  <Head title="Copy A → B" />
+  <Head title="Kirim ke Aplikasi" />
 
-  <PageHeader title="Copy PostgreSQL A → B">
+  <PageHeader title="Kirim ke Aplikasi">
     <template #subtitle>
-      Struktur dan isi PG B dibuat identik dengan PG A. Oracle tidak disentuh sama sekali.
+      Salin tabel dari <Term term="pgA" /> ke <Term term="pgB" /> yang dibaca aplikasi Anda.
+      Hasilnya identik dan diperiksa otomatis.
     </template>
 
-    <div class="grid gap-4 lg:grid-cols-3">
-      <form class="surface space-y-4 p-5 lg:col-span-2" @submit.prevent="copyNow">
-        <label class="block">
-          <span class="label">Tabel dari PostgreSQL A</span>
-          <select v-model="form.dataset_id" required class="input mt-1.5">
+    <div class="grid gap-6 lg:grid-cols-5">
+      <!-- Form kirim -->
+      <form class="surface space-y-6 p-6 sm:p-8 lg:col-span-3" @submit.prevent="copyNow">
+        <Field label="Tabel yang dikirim" :error="form.errors.dataset_id">
+          <select v-model="form.dataset_id" required class="input" :disabled="readyDatasets.length === 0">
             <option :value="null" disabled>Pilih dataset…</option>
-            <option v-for="dataset in datasets" :key="dataset.id" :value="dataset.id" :disabled="!dataset.has_data">
-              {{ dataset.name }} — {{ dataset.destination }}{{ dataset.has_data ? '' : ' (belum pernah sync)' }}
+            <option v-for="dataset in readyDatasets" :key="dataset.id" :value="dataset.id">
+              {{ dataset.name }} — {{ dataset.destination }}
             </option>
           </select>
-          <span v-if="form.errors.dataset_id" class="hint text-red-600">{{ form.errors.dataset_id }}</span>
-        </label>
+          <template v-if="notReady.length" #hint>
+            {{ notReady.length }} dataset belum muncul karena datanya belum pernah diambil:
+            {{ notReady.map((d) => d.name).join(', ') }}.
+          </template>
+        </Field>
 
-        <label class="block">
-          <span class="label">Tujuan PostgreSQL B</span>
-          <select v-model="form.target_id" required class="input mt-1.5">
-            <option :value="null" disabled>Pilih target…</option>
-            <option v-for="target in targets" :key="target.id" :value="target.id">
-              {{ target.name }} — aplikasi {{ target.app_name }}
-            </option>
-          </select>
-          <span v-if="form.errors.target_id" class="hint text-red-600">{{ form.errors.target_id }}</span>
-        </label>
+        <div class="flex justify-center text-ink-300" aria-hidden="true">
+          <Icon name="arrow" :size="22" class="rotate-90" />
+        </div>
 
-        <WarningList
-          v-if="selectedTarget && !selectedTarget.has_readonly"
-          tone="amber"
-          title="Belum ada user read-only"
-          :warnings="['Aplikasi sebaiknya hanya membaca lewat user read-only, bukan user owner. Jalankan perintah SQL read-only dari README.']"
-        />
+        <Field label="Kirim ke aplikasi" :error="form.errors.target_id">
+          <div v-if="targets.length" class="grid gap-3 sm:grid-cols-2">
+            <label v-for="target in targets" :key="target.id" class="choice">
+              <input v-model="form.target_id" type="radio" :value="target.id" class="mt-1 accent-brand-600">
+              <span class="min-w-0">
+                <span class="block font-semibold text-ink-900">{{ target.app_name }}</span>
+                <span class="block truncate text-sm text-ink-500">{{ target.name }}</span>
+                <span class="mt-1.5 inline-flex items-center gap-1 text-xs" :class="target.has_readonly ? 'text-emerald-800' : 'text-amber-800'">
+                  <Icon :name="target.has_readonly ? 'shield' : 'alert'" :size="14" />
+                  {{ target.has_readonly ? 'Akun baca-saja tersedia' : 'Belum ada akun baca-saja' }}
+                </span>
+              </span>
+            </label>
+          </div>
+          <WarningList v-else title="Belum ada Database Aplikasi">
+            <template v-if="isAdmin">Tambahkan di halaman <Link href="/drivers?tab=targets" class="font-semibold underline">Koneksi</Link>.</template>
+            <template v-else>Minta admin menambahkannya terlebih dahulu.</template>
+          </WarningList>
+        </Field>
 
-        <div class="flex items-center gap-3 border-t border-ink-100 pt-4">
+        <WarningList v-if="selectedTarget && !selectedTarget.has_readonly" title="Disarankan memakai akun baca-saja">
+          Aplikasi sebaiknya membaca data dengan <Term term="readonly" label="akun baca-saja" />, bukan akun pemilik database.
+          <template v-if="isAdmin">Atur di <Link href="/drivers?tab=targets" class="font-semibold underline">Koneksi → Aplikasi tujuan</Link>.</template>
+        </WarningList>
+
+        <WarningList v-if="otherErrors.length" tone="red" title="Gagal mengirim" :warnings="otherErrors" />
+
+        <div class="flex flex-wrap items-center gap-3 border-t border-ink-100 pt-6">
           <button type="submit" class="btn-primary" :disabled="form.processing || !form.dataset_id || !form.target_id">
-            {{ form.processing ? 'Menyalin…' : 'Copy' }}
+            <Icon :name="form.processing ? 'refresh' : 'send'" :class="form.processing ? 'animate-spin' : ''" />
+            {{ form.processing ? 'Mengirim…' : 'Kirim sekarang' }}
           </button>
-          <span class="text-xs text-ink-400">PG B yang rusak bisa di-copy ulang dari A kapan saja.</span>
+          <span class="text-sm text-ink-500">Anda akan diminta konfirmasi dulu.</span>
         </div>
       </form>
 
-      <aside class="surface p-5">
-        <h2 class="eyebrow">Target PG B</h2>
-        <p v-if="targets.length === 0" class="mt-3 text-xs text-ink-400">
-          Belum ada PG B. Tambahkan lewat halaman Driver.
-        </p>
-        <ul v-else class="mt-3 space-y-3">
-          <li v-for="target in targets" :key="target.id" class="rounded-lg border border-ink-100 p-3">
-            <p class="text-sm font-medium text-ink-800">{{ target.app_name }}</p>
-            <p class="mt-0.5 text-xs text-ink-500">{{ target.name }}</p>
-            <p class="mt-1.5 text-xs" :class="target.has_readonly ? 'text-emerald-700' : 'text-amber-700'">
-              {{ target.has_readonly ? `user read-only: ${target.readonly_username}` : 'belum ada user read-only' }}
-            </p>
+      <!-- Penjelasan -->
+      <aside class="surface-quiet space-y-4 p-6 lg:col-span-2">
+        <h2 class="font-semibold text-ink-900">Cara kerjanya</h2>
+        <ol class="space-y-4 text-sm text-ink-700">
+          <li class="flex gap-3">
+            <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-xs font-bold text-brand-700 ring-1 ring-ink-200">1</span>
+            <span>Struktur dan isi tabel dari Database Penampung disalin utuh.</span>
           </li>
-        </ul>
+          <li class="flex gap-3">
+            <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-xs font-bold text-brand-700 ring-1 ring-ink-200">2</span>
+            <span>Tabel di Database Aplikasi diganti dalam sekali langkah, jadi aplikasi tidak melihat data setengah jadi.</span>
+          </li>
+          <li class="flex gap-3">
+            <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-xs font-bold text-brand-700 ring-1 ring-ink-200">3</span>
+            <span>Isi kedua tabel dibandingkan. Hasilnya tampil sebagai <strong>Data cocok</strong> atau <strong>Data tidak cocok</strong>.</span>
+          </li>
+        </ol>
+        <p class="rounded-xl bg-white p-3.5 text-sm text-ink-600 ring-1 ring-ink-200">
+          Ingin otomatis? Buka dataset, lalu di langkah 4 centang aplikasi tujuan.
+        </p>
       </aside>
     </div>
 
-    <section class="space-y-3">
-      <h2 class="eyebrow">Copy terakhir</h2>
+    <section class="space-y-4">
+      <h2 class="section-title">Pengiriman terakhir</h2>
       <div class="table-wrap">
-        <table class="table">
+        <EmptyState v-if="lastCopies.length === 0" icon="send" title="Belum ada pengiriman" text="Riwayat pengiriman ke Database Aplikasi akan tampil di sini." />
+        <table v-else class="table">
           <thead>
-            <tr>
-              <th>Waktu</th>
-              <th>Dataset</th>
-              <th>Target</th>
-              <th>Status</th>
-              <th>Verifikasi</th>
-              <th class="text-right">Baris</th>
-            </tr>
+            <tr><th>Waktu</th><th>Dataset</th><th>Ke</th><th>Hasil</th><th>Pemeriksaan</th><th class="text-right">Baris</th></tr>
           </thead>
           <tbody>
-            <tr v-if="lastCopies.length === 0">
-              <td colspan="6" class="py-10 text-center text-ink-400">Belum ada copy.</td>
-            </tr>
             <tr v-for="run in lastCopies" :key="run.id">
-              <td class="whitespace-nowrap text-xs text-ink-500">{{ run.finished_at || '—' }}</td>
-              <td class="font-medium">{{ run.dataset }}</td>
-              <td class="text-xs text-ink-500">{{ run.target }}</td>
-              <td class="text-xs">{{ run.status }}</td>
-              <td>
-                <VerifyBadge :matched="run.verification === 'ok' ? true : run.verification === 'failed' ? false : null" compact />
+              <td class="text-sm whitespace-nowrap">
+                <Link :href="`/history/${run.id}`" class="text-ink-700 hover:text-brand-700" :title="run.finished_at">{{ timeAgo(run.finished_at) }}</Link>
               </td>
-              <td class="text-right tabular-nums">{{ run.row_count ?? '—' }}</td>
+              <td class="font-semibold text-ink-900">{{ run.dataset }}</td>
+              <td class="text-sm">{{ run.target }}</td>
+              <td><StatusBadge :status="run.status" /></td>
+              <td><VerifyBadge :matched="verificationState(run.verification)" compact /></td>
+              <td class="text-right tabular-nums">{{ formatNumber(run.row_count) }}</td>
             </tr>
           </tbody>
         </table>

@@ -1,38 +1,29 @@
 <script setup>
-defineProps({
+import { computed } from 'vue'
+import Icon from './Icon.vue'
+
+const props = defineProps({
   warnings: { type: Array, default: () => [] },
   title: { type: String, default: 'Perhatian' },
   tone: { type: String, default: 'amber' },
 })
+
+const styles = computed(() => ({
+  red: { box: 'border-red-200 bg-red-50', icon: 'text-red-600', title: 'text-red-900', body: 'text-red-800', name: 'alert' },
+  info: { box: 'border-brand-200 bg-brand-50', icon: 'text-brand-600', title: 'text-brand-900', body: 'text-brand-800', name: 'info' },
+  amber: { box: 'border-amber-200 bg-amber-50', icon: 'text-amber-600', title: 'text-amber-900', body: 'text-amber-900', name: 'alert' },
+}[props.tone] ?? {}))
 </script>
 
 <template>
-  <div
-    v-if="warnings.length"
-    class="flex gap-3 rounded-lg border px-4 py-3"
-    :class="tone === 'red'
-      ? 'border-red-200 bg-red-50'
-      : tone === 'info'
-        ? 'border-brand-200 bg-brand-50'
-        : 'border-amber-200 bg-amber-50'"
-  >
-    <span
-      class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold"
-      :class="tone === 'red' ? 'bg-red-200 text-red-800' : tone === 'info' ? 'bg-brand-200 text-brand-800' : 'bg-amber-200 text-amber-900'"
-    >
-      !
-    </span>
-    <div class="min-w-0 text-[13px] leading-relaxed">
-      <p
-        class="font-semibold"
-        :class="tone === 'red' ? 'text-red-800' : tone === 'info' ? 'text-brand-800' : 'text-amber-900'"
-      >
-        {{ title }}
-      </p>
-      <ul class="mt-1 list-disc space-y-0.5 pl-4"
-          :class="tone === 'red' ? 'text-red-700' : tone === 'info' ? 'text-brand-700' : 'text-amber-800'">
+  <div v-if="warnings.length || $slots.default" class="flex gap-3 rounded-xl border px-4 py-3.5" :class="styles.box">
+    <span class="mt-0.5" :class="styles.icon"><Icon :name="styles.name" :size="18" /></span>
+    <div class="min-w-0 text-sm leading-relaxed">
+      <p class="font-semibold" :class="styles.title">{{ title }}</p>
+      <ul v-if="warnings.length" class="mt-1 space-y-0.5" :class="[styles.body, warnings.length > 1 ? 'list-disc pl-4' : '']">
         <li v-for="(warning, index) in warnings" :key="index">{{ warning }}</li>
       </ul>
+      <div v-if="$slots.default" class="mt-1" :class="styles.body"><slot /></div>
     </div>
   </div>
 </template>

@@ -11,7 +11,8 @@ const props = defineProps({
   height: { type: String, default: '16rem' },
 })
 
-const emit = defineEmits(['update:modelValue'])
+// `run`: Ctrl/Cmd + Enter, jalan pintas untuk "Coba jalankan".
+const emit = defineEmits(['update:modelValue', 'run'])
 
 const host = ref(null)
 let view = null
@@ -27,15 +28,18 @@ onMounted(() => {
         drawSelection(),
         indentOnInput(),
         highlightActiveLine(),
-        keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+        keymap.of([
+          { key: 'Mod-Enter', run: () => { emit('run'); return true } },
+          ...defaultKeymap, ...historyKeymap, indentWithTab,
+        ]),
         sql(),
         syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
         EditorView.lineWrapping,
         EditorView.theme({
-          '&': { borderRadius: '0.5rem', border: '1px solid #cbd5e1', overflow: 'hidden' },
-          '&.cm-focused': { borderColor: '#3b68f5', boxShadow: '0 0 0 3px rgb(59 104 245 / 0.12)' },
-          '.cm-scroller': { minHeight: props.height, fontFamily: 'var(--font-mono)', fontSize: '13px' },
-          '.cm-content': { padding: '10px 0' },
+          '&': { borderRadius: '0.75rem', border: '1px solid #cbd5e1', overflow: 'hidden' },
+          '&.cm-focused': { borderColor: '#6366f1', boxShadow: '0 0 0 4px rgb(99 102 241 / 0.15)' },
+          '.cm-scroller': { minHeight: props.height, fontFamily: 'var(--font-mono)', fontSize: '14px', lineHeight: '1.6' },
+          '.cm-content': { padding: '12px 0' },
         }),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {

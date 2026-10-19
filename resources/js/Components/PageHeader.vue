@@ -6,15 +6,16 @@ defineProps({
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-8">
     <div class="flex flex-wrap items-end justify-between gap-4">
-      <div class="min-w-0">
+      <div class="min-w-0 max-w-2xl">
+        <slot name="back" />
         <h1 class="page-title">{{ title }}</h1>
-        <p v-if="subtitle || $slots.subtitle" class="mt-1 text-sm text-ink-500">
+        <p v-if="subtitle || $slots.subtitle" class="mt-2 text-[15px] leading-relaxed text-ink-500">
           <slot name="subtitle">{{ subtitle }}</slot>
         </p>
       </div>
-      <div class="flex shrink-0 flex-wrap gap-2">
+      <div v-if="$slots.actions" class="flex shrink-0 flex-wrap gap-2">
         <slot name="actions" />
       </div>
     </div>

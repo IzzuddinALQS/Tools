@@ -1,26 +1,43 @@
 <script setup>
 import { useForm } from '@inertiajs/vue3'
+import { confirm } from '../lib/confirm.js'
+import Icon from './Icon.vue'
 
 const props = defineProps({
   paused: { type: Boolean, default: false },
   full: { type: Boolean, default: false },
-  compact: { type: Boolean, default: false },
-  reason: { type: String, default: '' },
 })
 
-const pause = useForm({ reason: props.reason })
+const pause = useForm({ reason: '' })
 const resume = useForm({})
 
-function doPause() {
-  if (! window.confirm('Pause semua job?\n\nTidak ada penulisan ke PostgreSQL A atau B sampai di-resume.')) {
-    return
-  }
+async function doPause() {
+  const result = await confirm({
+    title: 'Hentikan semua proses?',
+    message: 'Tombol darurat ini menghentikan semua pengambilan dan pengiriman data sampai Anda melanjutkannya lagi.',
+    details: [
+      'Tidak ada data yang ditulis ke Database Penampung maupun Database Aplikasi.',
+      'Proses yang sedang berjalan berhenti dengan aman; data lama tetap utuh.',
+    ],
+    input: { label: 'Alasan (opsional)', placeholder: 'mis. Oracle sedang maintenance' },
+    confirmLabel: 'Hentikan semua',
+    tone: 'danger',
+  })
 
-  pause.post('/pause')
+  if (!result.ok) return
+
+  pause.reason = result.value
+  pause.post('/pause', { preserveScroll: true })
 }
 
-function doResume() {
-  resume.delete('/pause')
+async function doResume() {
+  const ok = await confirm({
+    title: 'Lanjutkan semua proses?',
+    message: 'Jadwal pengambilan dan pengiriman data akan berjalan normal lagi.',
+    confirmLabel: 'Lanjutkan',
+  })
+
+  if (ok) resume.delete('/pause', { preserveScroll: true })
 }
 </script>
 
@@ -28,27 +45,24 @@ function doResume() {
   <button
     v-if="!paused"
     type="button"
-    class="btn btn-sm w-full justify-center border border-red-200 bg-white text-red-700 hover:bg-red-50"
-    :class="full ? '' : 'btn-danger'"
+    class="btn-danger"
+    :class="full ? 'w-full' : ''"
     :disabled="pause.processing"
     @click="doPause"
   >
-    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-      <path stroke-linecap="round" d="M10 9v6m4-6v6" />
-    </svg>
-    {{ full ? 'Pause semua job' : 'Pause' }}
+    <Icon name="pause" />
+    {{ full ? 'Hentikan semua' : 'Hentikan' }}
   </button>
 
   <button
     v-else
     type="button"
-    class="btn btn-sm w-full justify-center border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+    class="btn border border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+    :class="full ? 'w-full' : ''"
     :disabled="resume.processing"
     @click="doResume"
   >
-    <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" d="M5 12l5 5L20 7" />
-    </svg>
-    {{ full ? 'Resume semua job' : 'Resume' }}
+    <Icon name="play" />
+    {{ full ? 'Lanjutkan semua' : 'Lanjutkan' }}
   </button>
 </template>
